@@ -1,0 +1,2 @@
+#!/bin/bash
+echo "help me create a midjourney text-only prompt "|xclip -i

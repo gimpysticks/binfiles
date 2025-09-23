@@ -1,0 +1,4 @@
+#!/bin/sh
+
+xdg-settings set default-web-browser com.google.Chrome.desktop
+flatpak run com.google.Chrome

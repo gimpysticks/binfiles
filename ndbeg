@@ -1,0 +1,4 @@
+#!/bin/sh
+tmux kill-session -t dictate
+tmux new -s dictate -d
+tmux send-keys -t dictate "nerd-dictation begin" C-m

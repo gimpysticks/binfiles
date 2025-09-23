@@ -1,0 +1,6 @@
+192.168.0.2:/data/backup /mnt/backup nfs defaults    0   0
+//192.168.0.2/Pictures /mnt/pictures cifs username=sticks,password=l8i0bH3V,uid=1000,iocharset=utf8,file_mode=0777,dir_mode=0777,noperm 0 0
+//192.168.0.2/Music /mnt/music cifs username=sticks,password=l8i0bH3V,uid=1000,iocharset=utf8,file_mode=0777,dir_mode=0777,noperm 0 0
+//192.168.0.2/disk_images /mnt/diskImages cifs username=sticks,password=l8i0bH3V,uid=1000,iocharset=utf8,file_mode=0777,dir_mode=0777,noperm 0 0
+//192.168.0.2/Videos /mnt/videos cifs username=sticks,password=l8i0bH3V,uid=1000,iocharset=utf8,file_mode=0777,dir_mode=0777,noperm 0 0
+//192.168.0.2/Documents /mnt/documents cifs username=sticks,password=l8i0bH3V,uid=1000,iocharset=utf8,file_mode=0777,dir_mode=0777,noperm 0 0

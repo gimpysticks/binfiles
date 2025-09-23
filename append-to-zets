@@ -1,0 +1,35 @@
+#!/bin/bash
+
+# Script to append content to existing markdown files in ~/zets
+# Usage: append-to-zets <filename>
+
+if [ $# -eq 0 ]; then
+    echo "Usage: append-to-zets <filename>"
+    echo "Example: append-to-zets git_commands"
+    exit 1
+fi
+
+FILENAME="$1"
+ZETS_DIR="$HOME/zets"
+FILEPATH="$ZETS_DIR/${FILENAME}.md"
+
+if [ ! -f "$FILEPATH" ]; then
+    echo "File $FILEPATH doesn't exist. Create it first with save-to-zets."
+    exit 1
+fi
+
+echo "Appending to: $FILEPATH"
+echo "Add your content below, then press Ctrl+D when done:"
+echo ""
+
+# Append timestamp and content
+echo "" >> "$FILEPATH"
+echo "---" >> "$FILEPATH"
+echo "$(date '+%Y-%m-%d %H:%M:%S')" >> "$FILEPATH"
+echo "" >> "$FILEPATH"
+
+# Read from stdin and append
+cat >> "$FILEPATH"
+
+echo ""
+echo "Content appended to $FILEPATH"

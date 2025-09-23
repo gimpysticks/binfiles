@@ -1,0 +1,2 @@
+#!/bin/bash
+cat /home/sticks/attributions.txt|xclip -selection clipboard

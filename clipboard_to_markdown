@@ -1,0 +1,17 @@
+#!/bin/bash#!/bin/bash
+
+# Output file name (timestamped)
+output_file="clipboard_output_$(date +%Y%m%d_%H%M%S).md"
+
+# Step 1: Get clipboard content (plain or HTML)
+clipboard_content=$(xclip -selection clipboard -o)
+
+# Step 2: Convert to markdown and preserve paragraphs
+echo "$clipboard_content" | pandoc --from=html --to=markdown --wrap=preserve -o "$output_file"
+
+# Step 3: Normalize spacing — ensure blank lines between paragraphs
+# Removes excess blank lines and ensures exactly one blank line between each
+awk 'NF{print ""}1' "$output_file" > tmp.md && mv tmp.md "$output_file"
+
+echo "Saved to $output_file with paragraph spacing preserved."
+

@@ -1,0 +1,1 @@
+/home/sticks/src/pythonfiles/cel2farh.py

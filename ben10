@@ -1,0 +1,3 @@
+#!/bin/bash
+export DISPLAY=:0 
+google-chrome  -fs --new-tab https://www.hulu.com/ben-10-2005 &

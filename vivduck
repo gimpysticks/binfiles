@@ -1,0 +1,5 @@
+
+#!/usr/bin/env bash
+params=$(echo "$*"|sed 's/ /+/g')
+#echo $params
+exec vivaldi-stable https://www.duckduckgo.com/?q=$params

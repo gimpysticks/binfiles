@@ -1,0 +1,4 @@
+#!/bin/bash
+processid=$(ps -ef | grep aces | awk '{print $2}')
+kill -9 $processid
+

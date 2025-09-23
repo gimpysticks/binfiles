@@ -1,0 +1,8 @@
+*.cache
+/mnt
+/media
+*Trash*
+*trash*
+*/.gvfs/ 
+/sticks/Downloads
+*VirtualBox\ VMs*

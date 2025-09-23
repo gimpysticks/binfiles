@@ -1,0 +1,9 @@
+#!/bin/sh
+if  [ $# -lt 1 ] ; then
+    echo "Usage: $(basename $0) <search string>"
+    echo ""
+    echo "Example $(basename $0) Europe"
+    echo "Returns installed timezones in Europe with current time"
+else
+for x in $(timedatectl list-timezones|grep "$1");do echo $x;TZ=$x date;done
+fi

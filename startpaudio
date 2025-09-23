@@ -1,0 +1,5 @@
+#!/bin/bash
+
+if [ -f /usr/bin/pulseaudio ]; then
+    /usr/bin/pulseaudio -k && /usr/bin/pulseaudio --start &
+fi

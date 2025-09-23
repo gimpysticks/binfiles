@@ -1,0 +1,2 @@
+#!/bin/bash
+echo "https://mubert.com/render/"|xclip -selection clipboard -i

@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+IFS=$'\n\t'
+
+if [ $XDG_CURRENT_DESKTOP == "i3" ]; then
+	conky &
+else
+	exit 1 2>&1 /dev/null
+fi

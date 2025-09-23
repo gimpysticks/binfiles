@@ -1,0 +1,3 @@
+#!/bin/bash
+lock_secs="${1:-300}"
+gsettings set org.gnome.desktop.screensaver lock-delay "$lock_secs"

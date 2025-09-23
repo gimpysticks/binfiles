@@ -1,0 +1,2 @@
+#!/bin/bash
+/usr/bin/polychromatic-cli -s PM2116F17803025 -o brightness -p "$1"
