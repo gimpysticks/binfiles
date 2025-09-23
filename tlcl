@@ -1,0 +1,2 @@
+#!/bin/bash
+nohup xdg-open https://www.linuxcommand.org/tlcl.php 2>&1 /dev/null

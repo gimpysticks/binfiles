@@ -1,0 +1,90 @@
+#!/bin/bash
+
+# Webcam Microphone Reset Script
+# Resets USB webcam microphone by unbinding and rebinding the USB device
+# Specifically designed for Logitech C922 Pro Stream Webcam
+
+set -e
+
+echo "🎤 Resetting webcam microphone..."
+
+# Function to find the webcam USB device path
+find_webcam_device() {
+    local webcam_vendor="046d"
+    local webcam_product="085c"
+    
+    for dev in /sys/bus/usb/devices/*; do
+        if [ -f "$dev/idVendor" ] && [ -f "$dev/idProduct" ]; then
+            vendor=$(cat "$dev/idVendor")
+            product=$(cat "$dev/idProduct")
+            if [ "$vendor" = "$webcam_vendor" ] && [ "$product" = "$webcam_product" ]; then
+                basename "$dev"
+                return 0
+            fi
+        fi
+    done
+    return 1
+}
+
+# Check if webcam is connected
+echo "🔍 Checking for Logitech C922 Pro Stream Webcam..."
+if ! lsusb | grep -q "046d:085c"; then
+    echo "❌ Logitech C922 Pro Stream Webcam not found!"
+    echo "   Please ensure your webcam is connected."
+    exit 1
+fi
+
+# Find the device path
+echo "📍 Locating USB device path..."
+device_path=$(find_webcam_device)
+if [ -z "$device_path" ]; then
+    echo "❌ Could not locate webcam USB device path!"
+    exit 1
+fi
+echo "   Found device at: $device_path"
+
+# Restart audio system (PipeWire)
+echo "🔄 Restarting audio system..."
+if systemctl --user is-active --quiet pipewire; then
+    systemctl --user restart pipewire pipewire-pulse
+    echo "   PipeWire restarted"
+else
+    echo "   PipeWire not running, skipping restart"
+fi
+
+# Reset the USB device
+echo "🔌 Resetting USB device..."
+echo "   Unbinding device: $device_path"
+echo "$device_path" | sudo tee /sys/bus/usb/drivers/usb/unbind > /dev/null
+
+echo "   Waiting for device to disconnect..."
+sleep 2
+
+echo "   Rebinding device: $device_path"
+echo "$device_path" | sudo tee /sys/bus/usb/drivers/usb/bind > /dev/null
+
+echo "   Waiting for device to initialize..."
+sleep 3
+
+# Verify the reset worked
+echo "✅ Verifying webcam microphone..."
+if arecord -l | grep -q "C922 Pro Stream Webcam"; then
+    echo "   ✅ Webcam microphone detected successfully!"
+    echo "   📊 Audio capture devices:"
+    arecord -l | grep -A1 "C922 Pro Stream Webcam" | sed 's/^/      /'
+else
+    echo "   ⚠️  Webcam microphone not detected in audio devices."
+    echo "   This might be normal if the device needs more time to initialize."
+fi
+
+echo "🎉 Webcam microphone reset complete!"
+echo
+echo "💡 You can test the microphone with:"
+echo "   # Using plug plugin (recommended - handles sample rate conversion):"
+echo "   arecord -f cd -t wav -D plughw:1,0 test.wav"
+echo "   "
+echo "   # Or using native webcam settings (16kHz or 32kHz):"
+echo "   arecord -f S16_LE -r 32000 -c 2 -t wav -D hw:1,0 test.wav"
+echo "   "
+echo "   (Press Ctrl+C to stop recording, then play with 'aplay test.wav')"
+

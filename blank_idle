@@ -1,0 +1,3 @@
+#!/bin/bash
+idle_secs="${1:-300}"
+gsettings set org.gnome.desktop.session idle-delay "$idle_secs"

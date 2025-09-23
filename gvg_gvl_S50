@@ -1,0 +1,2 @@
+ #!/bin/bash
+echo "--profile 4lbi7ao lzdppsy --stylize 50"|xclip -selection clipboard -i

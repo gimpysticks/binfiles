@@ -1,0 +1,10 @@
+#!/bin/sh
+mogrify -filter Mitchell -resize 350%x350% *.png
+
+for png_file in *.png; do
+  basename=$(basename "$png_file" .png)
+  jpeg_file="$basename.jpg"
+  convert -quality 100 "$png_file" "$jpeg_file"
+done
+
+rm *.png

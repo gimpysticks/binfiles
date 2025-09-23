@@ -1,0 +1,122 @@
+#!/bin/bash
+
+# Script to remove unused configurations from ~/.config and ~/.local
+
+# Configuration
+CONFIG_DIRS=("$HOME/.config" "$HOME/.local")
+DAYS_THRESHOLD=180  # Consider a program unused if its config hasn't been modified in this many days
+EXCLUDE_DIRS=("pulse" "fontconfig" "gtk-3.0" "gtk-4.0" "terminfo" "mimeapps.list" "user-dirs.dirs" "user-dirs.locale") # Add directories to always exclude
+EXCLUDE_FILES=() # Add specific files to always exclude
+
+# Function to check if a directory or file hasn't been modified recently
+is_old() {
+  local path="$1"
+  local days="$2"
+  find "$path" -maxdepth 0 -type d -mtime +"$days" -print -quit 2>/dev/null
+}
+
+# Function to check if a directory is likely associated with an installed program
+is_program_config() {
+  local dir="$1"
+  local base=$(basename "$dir")
+
+  # Basic checks:
+  # - Not an excluded directory
+  for excluded in "${EXCLUDE_DIRS[@]}"; do
+    if [[ "$base" == "$excluded" ]]; then
+      return 1 # Excluded
+    fi
+  done
+
+  # - Not an excluded file (though this function primarily deals with directories)
+  for excluded in "${EXCLUDE_FILES[@]}"; do
+    if [[ "$base" == "$excluded" ]]; then
+      return 1 # Excluded
+    fi
+  done
+
+  # More sophisticated checks (you can expand these):
+  # - Check if a similarly named executable exists in common PATH directories
+  for path in $(echo "$PATH" | tr ':' '\n'); do
+    if [[ -x "$path/$base" ]]; then
+      return 0 # Likely a program config
+    fi
+    if [[ -x "$path/$base-bin" ]]; then # Check for potential binary suffixes
+      return 0
+    fi
+  done
+
+  # - Check for common program-related files or subdirectories within the config dir
+  if [[ -e "$dir/$base.desktop" || -e "$dir/$base.ini" || -d "$dir/data" || -d "$dir/cache" ]]; then
+    return 0
+  fi
+
+  # If none of the above, consider it potentially unused (needs manual review)
+  return 1
+}
+
+# Function to prompt the user for confirmation
+confirm_removal() {
+  local path="$1"
+  read -p "Remove '$path'? (y/N): " response
+  case "$response" in
+    [yY][eE][sS]|[yY])
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+# Main script
+echo "Starting script to identify unused configurations..."
+
+for config_dir in "${CONFIG_DIRS[@]}"; do
+  if [[ -d "$config_dir" ]]; then
+    echo "Processing directory: $config_dir"
+    find "$config_dir" -maxdepth 1 -type d ! -name "." -print0 | while IFS= read -r -d $'\0' item; do
+      base_name=$(basename "$item")
+
+      # Skip explicitly excluded directories
+      local should_skip=0
+      for excluded in "${EXCLUDE_DIRS[@]}"; do
+        if [[ "$base_name" == "$excluded" ]]; then
+          should_skip=1
+          break
+        fi
+      done
+      if [[ "$should_skip" -eq 1 ]]; then
+        continue
+      fi
+
+      # Check if the directory hasn't been modified recently
+      if is_old "$item" "$DAYS_THRESHOLD"; then
+        echo "Potentially unused configuration directory: $item (not modified in $DAYS_THRESHOLD days)"
+        if is_program_config "$item"; then
+          echo "  Likely associated with a program."
+          if confirm_removal "$item"; then
+            echo "Removing '$item'..."
+            rm -rf "$item"
+            if [[ $? -ne 0 ]]; then
+              echo "Error removing '$item'."
+            fi
+          else
+            echo "Skipping '$item'."
+          fi
+        else
+          echo "  Not clearly associated with an installed program (may be system or temporary data)."
+          echo "  Skipping for safety. Review manually if needed."
+        fi
+        echo ""
+      fi
+    done
+  else
+    echo "Warning: Directory '$config_dir' does not exist."
+  fi
+done
+
+echo "Finished checking for unused configurations."
+echo "Please review any skipped directories manually to ensure no important data was missed."
+
+exit 0

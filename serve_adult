@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# Serve the LUKS-Adult directory using the md-server script
+~/bin/md-server /media/sticks/LUKS-Adult/
+

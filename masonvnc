@@ -1,0 +1,2 @@
+#!/bin/sh
+ssh wallsmason55@192.168.4.4 /home/wallsmason55/bin/runvnc.sh

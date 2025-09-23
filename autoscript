@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# Set variables.
+FOLDER="$HOME/scripts"
+SCRIPT="$FOLDER/$1"
+
+if [[ -f $SCRIPT ]]; then
+	echo -e "File \e[36m$1 \e[39malready exists!"
+else
+	echo '#!/bin/bash' > $SCRIPT
+	chmod +x $SCRIPT
+	echo -e "File \e[36m$1 \e[39mcreated / marked \e[36mexecutable."
+fi

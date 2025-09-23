@@ -1,0 +1,47 @@
+#!/bin/bash
+sudo apt-get update
+sudo apt-get upgrade
+sudo apt-get install ssh
+sudo apt-get install mint-backgrounds-*
+sudo apt-get install chromium-browser
+wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+sudo sh -c 'echo "deb http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list'
+sudo apt-get update
+sudo apt-get install google-chrome-stable
+sudo apt-get install pepperflashplugin-nonfree
+sudo dpkg-reconfigure pepperflashplugin-nonfree
+sudo apt-get install libdvdread4
+sudo /usr/share/doc/libdvdread4/install-css.sh
+sudo apt-get install skype
+sudo apt-get install unace p7zip-rar sharutils rar arj lunzip lzip
+sudo apt-get install clipit
+#sudo apt-get install mint-meta-mate
+sudo apt-get autoremove
+wget http://prdownloads.sourceforge.net/webadmin/webmin_1.791_all.deb
+sudo dpkg -i webmin_1.791_all.deb
+sudo rm -rf webmin_1.791_all.deb
+apt-get install -f
+sudo add-apt-repository ppa:minecraft-installer-peeps/minecraft-installer
+sudo apt-get update
+sudo apt-get install minecraft-installer
+#wget https://launchpad.net/~minecraft-installer-peeps/+archive/ubuntu/minecraft-installer/+files/minecraft-installer_0.1%2Br11~ubuntu14.10.1_amd64.deb
+sudo add-apt-repository ppa:audacity-team/daily
+sudo apt-get update
+sudo apt-get install recordmydesktop recorditnow cheese guvcview audacity
+sudo apt-get install idle3 idle3-tools eric
+sudo apt-get install python-software-properties pkg-config software-properties-common
+sudo add-apt-repository ppa:team-xbmc/ppa
+sudo apt-get update
+sudo apt-get install kodi kodi-audioencoder-*
+sudo add-apt-repository ppa:soylent-tv/screenstudio
+sudo apt-get update
+sudo apt-get install screenstudio
+sudo apt-get install screen
+sudo add-apt-repository ppa:me-davidsansome/clementine
+sudo apt-get update
+sudo apt-get install clementine
+sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 94558F59
+sudo add-apt-repository "deb http://repository.spotify.com stable non-free"
+sudo apt-get update
+sudo apt-get install spotify-client
+

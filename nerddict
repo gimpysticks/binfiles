@@ -1,0 +1,38 @@
+#!/bin/bash
+
+SESSION_NAME="dictate"
+
+# Function to check if a tmux session exists
+session_exists() {
+  tmux ls 2>/dev/null | grep -q "$1:"
+}
+
+# Function to send notification (Wayland compatible)
+send_notification() {
+  local message="$1"
+  # Try different notification methods in order of preference
+  if command -v notify-send &> /dev/null; then
+    # Set display for Wayland if needed
+    if [ -n "$WAYLAND_DISPLAY" ]; then
+      DISPLAY=":0" notify-send -t 3000 "$message"
+    else
+      notify-send -t 3000 "$message"
+    fi
+  elif command -v dunstify &> /dev/null; then
+    dunstify -t 3000 "$message"
+  else
+    echo "$message"
+  fi
+}
+
+# Toggle logic
+if session_exists "$SESSION_NAME"; then
+  # Kill the session if it exists
+  tmux kill-session -t "$SESSION_NAME"
+  send_notification "Tmux session '$SESSION_NAME' killed."
+else
+  # Create the session and send keys if it doesn't exist
+  tmux new -s "$SESSION_NAME" -d
+  tmux send-keys -t "$SESSION_NAME" "nerd-dictation begin" C-m
+  send_notification "Tmux session '$SESSION_NAME' created and command sent."
+fi

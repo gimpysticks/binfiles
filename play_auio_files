@@ -1,0 +1,33 @@
+#!/bin/bash
+
+directory="$1"
+
+# Check if directory parameter is provided
+if [ -z "$directory" ]; then
+    echo "Directory path not provided."
+    echo "Usage: ./play_audio_directory.sh <directory>"
+    exit 1
+fi
+
+# Verify if the directory exists
+if [ ! -d "$directory" ]; then
+    echo "Directory not found: $directory"
+    exit 1
+fi
+
+# Loop through each ZIP file in the directory
+for zipfile in "$directory"/*.zip; do
+    # Create a temporary directory for each ZIP file
+    tmp_dir=$(mktemp -d)
+
+    # Extract audio files from the ZIP file to the temporary directory
+    unzip -j "$zipfile" "*.mp3" "*.wav" -d "$tmp_dir"
+
+    # Play each audio file in the temporary directory
+    for audio_file in "$tmp_dir"/*.mp3 "$tmp_dir"/*.wav; do
+        aplay "$audio_file"
+    done
+
+    # Remove the temporary directory
+    rm -r "$tmp_dir"
+done

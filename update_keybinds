@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# Script to dump Pop OS custom keybindings to dconf file
+# Created: $(date)
+#
+# This script exports your custom keybindings to a dconf file for backup purposes.
+#
+# To restore keybindings from the exported file, use:
+# dconf load /org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/ < /home/sticks/bin/custom-keybindings.dconf
+#
+# You may need to restart your session or run 'gsettings reset-recursively org.gnome.settings-daemon.plugins.media-keys'
+# after restoring to ensure the keybindings take effect.
+
+echo "Dumping custom keybindings to /home/sticks/bin/custom-keybindings.dconf..."
+
+# Dump custom keybindings to the specified file
+dconf dump /org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/ > /home/sticks/bin/custom-keybindings.dconf
+
+echo "Keybindings exported successfully!"
+echo "File location: /home/sticks/bin/custom-keybindings.dconf"
+

@@ -1,0 +1,18 @@
+#!/bin/bash
+
+rm -rf /tmp/xvids && mkdir -p /tmp/xvids && cd /tmp/xvids
+
+for u in $(xclip -selection clipboard -o); do
+    filename=$(yt-dlp --get-filename $u)
+    timestamp=$(date +%Y%m%d_%H%M%S)
+    unique_filename="${filename}_${timestamp}.mp4"
+
+    yt-dlp --output "$unique_filename" "$u"
+
+    if [ $? -eq 0 ]; then
+        mpv --fs "$unique_filename"
+        mv "$unique_filename" "${filename}_${timestamp}.old"
+    else
+        echo "Error downloading video: $u"
+    fi
+done

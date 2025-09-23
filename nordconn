@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+vpnlogout=$(/usr/bin/nordvpn logout)
+sleep 1
+token=$(/usr/bin/nordvpn --token $NORDTOKEN)
+sleep 1
+vpncon=$(/usr/bin/nordvpn connect)
+

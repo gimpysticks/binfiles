@@ -1,0 +1,2 @@
+#!/bin/bash
+echo -e "Hosted by: $1\nTag: $2"|xclip -selection clipboard -i

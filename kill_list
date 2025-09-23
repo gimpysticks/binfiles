@@ -1,0 +1,14 @@
+#!/usr/bin/sh
+sudo pkill Discord
+sudo pkill beeper
+sudo pkill telegram
+sudo pkill variety
+sudo pkill poly
+sudo pkill mail
+sudo pkill protonmail-brid
+sudo pkill protonmail
+sudo pkill bwrap
+sudo pkill bitwarden-app
+sudo pkill bridge
+sudo pkill steam
+sudo pkill guake

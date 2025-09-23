@@ -1,0 +1,47 @@
+#!/bin/bash
+
+# Script to save content to ~/zets as markdown
+# Usage: save-to-zets <filename> [title]
+
+if [ $# -eq 0 ]; then
+    echo "Usage: save-to-zets <filename> [title]"
+    echo "Example: save-to-zets git_commands 'Git Commands Reference'"
+    exit 1
+fi
+
+FILENAME="$1"
+TITLE="${2:-$1}"
+ZETS_DIR="$HOME/zets"
+FILEPATH="$ZETS_DIR/${FILENAME}.md"
+
+# Create zets directory if it doesn't exist
+mkdir -p "$ZETS_DIR"
+
+# Check if file already exists
+if [ -f "$FILEPATH" ]; then
+    echo "File $FILEPATH already exists. Overwrite? (y/N)"
+    read -r response
+    if [[ ! "$response" =~ ^[Yy]$ ]]; then
+        echo "Cancelled."
+        exit 0
+    fi
+fi
+
+# Create the markdown file with header
+cat > "$FILEPATH" << EOF
+# $TITLE
+
+$(date '+%Y-%m-%d %H:%M:%S')
+
+EOF
+
+echo "Created: $FILEPATH"
+echo "You can now:"
+echo "1. Paste content directly: pbpaste >> $FILEPATH (if you have pbpaste)"
+echo "2. Edit with your preferred editor: \$EDITOR $FILEPATH"
+echo "3. Use heredoc: cat >> $FILEPATH << 'EOF'"
+echo ""
+echo "Opening file for editing..."
+
+# Open with default editor
+${EDITOR:-nano} "$FILEPATH"

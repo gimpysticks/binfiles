@@ -1,0 +1,3 @@
+#!/bin/sh
+find /home/sticks/Pictures/Midjourney/ -type f -name "*.png" -mtime +7 -exec rsync -av --remove-source-files {} /media/sticks/PNY/Midjourney/ \;
+find /home/sticks/Pictures/Midjourney/ -type f -name "*.zip" -mtime +7 -exec rsync -av --remove-source-files {} /media/sticks/PNY/Midjourney/Zipfiles/ \;

@@ -1,0 +1,259 @@
+[PopLaunch1]
+binding='Launch1'
+command='gnome-control-center wifi'
+name='WiFi'
+
+[custom0]
+binding='<Alt><Super>i'
+command='xdg-open https://www.instagram.com/gimpysticks'
+name='Instagram'
+
+[custom1]
+binding='<Alt><Super>x'
+command='xdg-open https://x.com/home'
+name='X.com'
+
+[custom10]
+binding='<Alt><Super>w'
+command='bash -c /home/sticks/bin/workurls'
+name='Work URLS'
+
+[custom11]
+binding='<Primary><Super>s'
+command='steam'
+name='Steam'
+
+[custom12]
+binding='<Primary><Super>w'
+command='xdg-open "steam://rungameid/236390"'
+name='War Thunder'
+
+[custom13]
+binding='<Alt><Super>r'
+command='xdg-open https://www.redbubble.com/people/gimpysticks/shop?asc=u'
+name='Redbubble'
+
+[custom14]
+binding='<Alt><Super>b'
+command='bash -c /home/sticks/bin/chgbrowser'
+name='Changer Browser'
+
+[custom15]
+binding='<Super>F3'
+command='/usr/bin/gimp'
+name='Gimp'
+
+[custom16]
+binding='<Primary><Super>d'
+command='flatpak run com.discordapp.Discord'
+name='Discord'
+
+[custom17]
+binding='<Alt><Super>n'
+command='/home/sticks/bin/nerddict'
+name='Nerd Dictate'
+
+[custom18]
+binding='<Alt><Super>o'
+command='snap run obs-studio'
+name='OBS Studio'
+
+[custom19]
+binding='<Shift><Super>s'
+command='flatpak run org.shotcut.Shotcut'
+name='Shotcut'
+
+[custom2]
+binding='<Alt><Super>g'
+command='xdg-open https://gemini.google.com/app'
+name='Gemini'
+
+[custom20]
+binding='<Super>F10'
+command='spotify'
+name='Spotify'
+
+[custom22]
+binding='<Primary><Super>e'
+command='flatpak run im.riot.Riot'
+name='Element'
+
+[custom23]
+binding='<Alt><Super>o'
+command='flatpak run md.obsidian.Obsidian'
+name='Obsidian'
+
+[custom24]
+binding='<Primary><Super>s'
+command='/usr/games/steam'
+name='Steam'
+
+[custom25]
+binding='<Alt><Super>g'
+command='xdg-open https://gemini.google.com'
+name='Gemini'
+
+[custom26]
+binding='<Primary><Super>o'
+command='flatpak run com.obsproject.Studio'
+name='OBS'
+
+[custom27]
+binding='<Primary><Alt>s'
+command='/usr/bin/shotwell'
+name='Shotwell'
+
+[custom28]
+binding='<Alt><Super>x'
+command='firefox https://twitter.com/home'
+name='Open X'
+
+[custom29]
+binding='<Primary>Escape'
+command='xkill'
+name='Xkill'
+
+[custom3]
+binding='<Alt><Super>f'
+command='xdg-open https://www.facebook.com/gimpysticks'
+name='Facebook'
+
+[custom30]
+binding=''
+command='gnome-pomodoro'
+name='gnome-pomodoro'
+
+[custom31]
+binding='<Primary><Super>a'
+command='/usr/bin/audacity'
+name='Audacity'
+
+[custom32]
+binding='<Primary><Alt>g'
+command='gnome-terminal -x glances'
+name='Glances'
+
+[custom33]
+binding='<Alt><Super>h'
+command='/usr/bin/hypnotix'
+name='Hypnotix'
+
+[custom34]
+binding='<Primary><Alt>o'
+command='flatpak run org.openrgb.OpenRGB'
+name='OpenRGB'
+
+[custom35]
+binding='<Primary><Alt>p'
+command='/usr/bin/polychromatic-tray-applet'
+name='polychromatic-tray-applet'
+
+[custom36]
+binding='<Primary><Alt>BackSpace'
+command='/home/sticks/bin/restartx'
+name='Restart X'
+
+[custom37]
+binding='<Primary><Super>c'
+command='flatpak run org.gnome.Connections'
+name='Connections'
+
+[custom38]
+binding='<Alt><Super>w'
+command='/usr/bin/bash /home/sticks/bin/workurls'
+name='Workspace'
+
+[custom39]
+binding='<Alt><Super>f'
+command='firefox https://www.facebook.com/gimpysticks'
+name='Facebook'
+
+[custom4]
+binding='<Primary><Super>r'
+command='sh /home/sticks/bin/readespeak.sh'
+name='ReadEspeak'
+
+[custom40]
+binding='<Alt><Super>m'
+command='xdg-open https://www.midjourney.com'
+name='Midjourney'
+
+[custom41]
+binding='<Primary><Alt>d'
+command='flatpak run org.kde.digikam'
+name='Digikam'
+
+[custom42]
+binding='<Primary><Alt>b'
+command='AppImageLauncher /home/sticks/Applications/Beeper-4.0.747.AppImage'
+name='Beeper'
+
+[custom43]
+binding='<Alt>Right'
+command='/usr/bin/variety --next'
+name='Variety Next'
+
+[custom44]
+binding='<Alt>Left'
+command='/usr/bin/variety --previous'
+name='variety Previous'
+
+[custom45]
+binding='<Alt><Super>l'
+command='/home/sticks/bin/cplinktree'
+name='Linktree to Clipboard'
+
+[custom46]
+binding='<Alt><Super>i'
+command='xdg-open https://www.instagram.com/gimpysticks'
+name='Instagram'
+
+[custom47]
+binding='<Shift><Super>t'
+command='/usr/bin/firefox www.twitch.com'
+name='Twitch'
+
+[custom48]
+binding='<Alt><Super>r'
+command='xdg-open https://www.redbubble.com/portfolio/manage_works?ref=account-nav-dropdown'
+name='Redbubble'
+
+[custom49]
+binding='<Alt><Super>t'
+command='xdg-open https://www.tiktok.com'
+name='TikTok'
+
+[custom5]
+binding='<Alt><Super>m'
+command='xdg-open https://www.midjourney.com/archive'
+name='Midjourney'
+
+[custom50]
+binding='<Alt><Super>n'
+command='/home/sticks/bin/nerddict'
+name='toggle_nerd_dict'
+
+[custom51]
+binding='<Alt><Super>e'
+command='xdg-open https://elevenlabs.io/app/home'
+name='Eleven Labs'
+
+[custom6]
+binding='<Super>t'
+command='x-terminal-emulator'
+name='Open Terminal'
+
+[custom7]
+binding='F12'
+command='guake'
+name='Guake'
+
+[custom8]
+binding='<Shift><Super>o'
+command='xdg-open https://chatgpt.com/'
+name='ChatGpt'
+
+[custom9]
+binding='<Shift><Alt>s'
+command='flatpak run org.standardnotes.standardnotes'
+name='Standard Notes'

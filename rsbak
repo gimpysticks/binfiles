@@ -1,0 +1,2 @@
+#!/bin/env sh
+rsync -aAX --info=progress2 --exclude={"/dev/*","/proc/*","/sys/*","/tmp/*","/run/*","/mnt/*","/media/*","/lost+found"} / /mnt/rsbk 2> ~/rsync.err 

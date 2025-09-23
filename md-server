@@ -1,0 +1,274 @@
+#!/usr/bin/env python3
+"""
+Simple Flask web server for viewing local Markdown files with clickable links.
+Usage: md-server [directory] [--port PORT]
+"""
+
+import os
+import sys
+from flask import Flask, render_template_string, send_from_directory, abort, request
+import markdown
+from pathlib import Path
+import argparse
+
+app = Flask(__name__)
+
+# Configuration
+BASE_DIR = os.getcwd()
+PORT = 8000
+
+# HTML template for rendering markdown
+HTML_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .breadcrumb {
+            background: #e9ecef;
+            padding: 10px 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        .breadcrumb a {
+            color: #007bff;
+            text-decoration: none;
+        }
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+        .file-list {
+            list-style: none;
+            padding: 0;
+        }
+        .file-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .file-list a {
+            color: #007bff;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+        }
+        .file-list a:hover {
+            text-decoration: underline;
+        }
+        .icon {
+            margin-right: 8px;
+            width: 16px;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        code {
+            background: #f8f9fa;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        blockquote {
+            border-left: 4px solid #007bff;
+            margin: 0;
+            padding-left: 20px;
+            color: #6c757d;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 1em 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #f8f9fa;
+        }
+        h1, h2, h3, h4, h5, h6 {
+            color: #333;
+            margin-top: 1.5em;
+            margin-bottom: 0.5em;
+        }
+        a {
+            color: #007bff;
+        }
+        a:hover {
+            color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="breadcrumb">
+            <a href="/">🏠 Home</a>{{ breadcrumb | safe }}
+        </div>
+        {{ content | safe }}
+    </div>
+</body>
+</html>
+"""
+
+def get_breadcrumb(path):
+    """Generate breadcrumb navigation"""
+    if not path or path == '/':
+        return ""
+    
+    parts = path.strip('/').split('/')
+    breadcrumb_parts = []
+    current_path = ""
+    
+    for part in parts:
+        current_path += "/" + part
+        breadcrumb_parts.append(f'<a href="{current_path}">📁 {part}</a>')
+    
+    return " / " + " / ".join(breadcrumb_parts)
+
+def is_safe_path(path):
+    """Check if the path is safe (within BASE_DIR)"""
+    try:
+        requested_path = os.path.realpath(os.path.join(BASE_DIR, path.lstrip('/')))
+        return requested_path.startswith(os.path.realpath(BASE_DIR))
+    except:
+        return False
+
+@app.route('/')
+@app.route('/<path:filepath>')
+def serve_file(filepath=''):
+    if not is_safe_path(filepath):
+        abort(403)
+    
+    full_path = os.path.join(BASE_DIR, filepath.lstrip('/'))
+    
+    # If it's a directory, show directory listing
+    if os.path.isdir(full_path):
+        return serve_directory(filepath, full_path)
+    
+    # If it's a markdown file, render it
+    if filepath.endswith('.md') and os.path.isfile(full_path):
+        return serve_markdown(filepath, full_path)
+    
+    # For other files, serve them directly
+    if os.path.isfile(full_path):
+        directory = os.path.dirname(full_path)
+        filename = os.path.basename(full_path)
+        return send_from_directory(directory, filename)
+    
+    abort(404)
+
+def serve_directory(filepath, full_path):
+    """Serve directory listing"""
+    try:
+        items = []
+        
+        # Add parent directory link if not at root
+        if filepath and filepath != '/':
+            parent_path = os.path.dirname(filepath.rstrip('/'))
+            if parent_path == '':
+                parent_path = '/'
+            items.append(f'<li><a href="{parent_path}">📁 ..</a></li>')
+        
+        # List directories first, then files
+        entries = sorted(os.listdir(full_path))
+        directories = [e for e in entries if os.path.isdir(os.path.join(full_path, e))]
+        files = [e for e in entries if os.path.isfile(os.path.join(full_path, e))]
+        
+        for directory in directories:
+            if not directory.startswith('.'):
+                dir_path = os.path.join(filepath, directory).replace('\\', '/')
+                items.append(f'<li><a href="/{dir_path}">📁 {directory}/</a></li>')
+        
+        for file in files:
+            if not file.startswith('.'):
+                file_path = os.path.join(filepath, file).replace('\\', '/')
+                icon = "📝" if file.endswith('.md') else "📄"
+                items.append(f'<li><a href="/{file_path}">{icon} {file}</a></li>')
+        
+        content = f"""
+        <h1>Directory: /{filepath}</h1>
+        <ul class="file-list">
+            {''.join(items)}
+        </ul>
+        """
+        
+        return render_template_string(
+            HTML_TEMPLATE,
+            title=f"Directory: /{filepath}",
+            content=content,
+            breadcrumb=get_breadcrumb(filepath)
+        )
+    except PermissionError:
+        abort(403)
+    except Exception as e:
+        abort(500)
+
+def serve_markdown(filepath, full_path):
+    """Serve rendered markdown file"""
+    try:
+        with open(full_path, 'r', encoding='utf-8') as f:
+            md_content = f.read()
+        
+        # Configure markdown with extensions
+        md = markdown.Markdown(extensions=[
+            'markdown.extensions.fenced_code',
+            'markdown.extensions.tables',
+            'markdown.extensions.toc',
+            'markdown.extensions.codehilite'
+        ])
+        
+        html_content = md.convert(md_content)
+        
+        return render_template_string(
+            HTML_TEMPLATE,
+            title=os.path.basename(filepath),
+            content=html_content,
+            breadcrumb=get_breadcrumb(os.path.dirname(filepath))
+        )
+    except Exception as e:
+        return f"Error reading file: {str(e)}", 500
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Local Markdown Server')
+    parser.add_argument('directory', nargs='?', default='.', 
+                       help='Directory to serve (default: current directory)')
+    parser.add_argument('-p', '--port', type=int, default=8000,
+                       help='Port to run server on (default: 8000)')
+    
+    args = parser.parse_args()
+    
+    BASE_DIR = os.path.abspath(args.directory)
+    PORT = args.port
+    
+    if not os.path.isdir(BASE_DIR):
+        print(f"Error: Directory '{args.directory}' does not exist")
+        sys.exit(1)
+    
+    print(f"Starting Markdown server...")
+    print(f"Serving directory: {BASE_DIR}")
+    print(f"Server running at: http://localhost:{PORT}")
+    print(f"Press Ctrl+C to stop the server")
+    
+    try:
+        app.run(host='0.0.0.0', port=PORT, debug=False)
+    except KeyboardInterrupt:
+        print("\nServer stopped.")

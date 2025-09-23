@@ -1,0 +1,3 @@
+#!/bin/sh
+bwpath=$(find /home/sticks/Applications -iname 'Bit*')
+$bwpath

@@ -1,0 +1,2 @@
+ #!/bin/bash
+echo "1880s, Dark, gothic, Victorian"|xclip -selection clipboard -i

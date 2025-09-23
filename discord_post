@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# Replace 'YOUR_WEBHOOK_URL' with the URL of your Discord webhook
+WEBHOOK_URL="https://discord.com/api/webhooks/1175156341027897354/am4XoajWvByCWM7FynU2u7yJDP9DQCr42pvjntOBXzINxsNRQbjyHovMm5EfTBE3Tj3J"
+
+#echo $WEBHOOK_URL
+
+# Replace 'YOUR_MESSAGE' with the message you want to send
+MESSAGE="This is a test message. $(date)"
+#
+## Create the payload for the Discord webhook
+PAYLOAD='{"content": "'"$MESSAGE"'"}'
+#
+## Send the payload to the webhook
+curl -X POST -H "Content-Type: application/json" -d "$PAYLOAD" "$WEBHOOK_URL"

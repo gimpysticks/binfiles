@@ -1,0 +1,3 @@
+#!/bin/sh
+echo -e $USERPASS|sudo -S systemctl restart display-manager
+# systemctl restart display-manager

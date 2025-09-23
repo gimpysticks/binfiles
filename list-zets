@@ -1,0 +1,33 @@
+#!/bin/bash
+
+# Script to list all markdown files in ~/zets
+# Usage: list-zets [pattern]
+
+ZETS_DIR="$HOME/zets"
+PATTERN="${1:-*.md}"
+
+if [ ! -d "$ZETS_DIR" ]; then
+    echo "Zets directory doesn't exist: $ZETS_DIR"
+    exit 1
+fi
+
+echo "Zets files in $ZETS_DIR:"
+echo "=========================="
+
+if [ "$1" ]; then
+    echo "Filtering by pattern: $PATTERN"
+    echo ""
+fi
+
+# List files with modification time and first line (title)
+find "$ZETS_DIR" -name "$PATTERN" -type f | sort | while read -r file; do
+    filename=$(basename "$file" .md)
+    mod_time=$(stat -c '%y' "$file" | cut -d' ' -f1,2 | cut -d'.' -f1)
+    first_line=$(head -n1 "$file" | sed 's/^# //')
+    
+    printf "%-20s %s - %s\n" "$filename" "$mod_time" "$first_line"
+done
+
+echo ""
+echo "Usage: list-zets [pattern]"
+echo "Example: list-zets '*git*'"

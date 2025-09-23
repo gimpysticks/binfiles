@@ -1,0 +1,6 @@
+192.168.0.2:/data/backup	/mnt/backup	nfs	defaults	0	0
+//192.168.0.2/disk_images	/mnt/diskImages	cifs	password=l8i0bH3V,username=sticks	0	0
+//192.168.0.2/documents	/mnt/documents	cifs	password=l8i0bH3V,username=sticks	0	0
+//192.168.0.2/music	/mnt/music	cifs	username=sticks,password=l8i0bH3V	0	0
+//192.168.0.2/pictures	/mnt/pictures	cifs	password=l8i0bH3V,username=sticks	0	0
+//192.168.0.2/videos	/mnt/videos	cifs	username=sticks,password=l8i0bH3V	0	0
