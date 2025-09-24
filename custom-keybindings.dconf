@@ -19,39 +19,39 @@ command='bash -c /home/sticks/bin/workurls'
 name='Work URLS'
 
 [custom11]
-binding='<Primary><Super>s'
-command='steam'
-name='Steam'
-
-[custom12]
-binding='<Primary><Super>w'
-command='xdg-open "steam://rungameid/236390"'
-name='War Thunder'
-
-[custom13]
-binding='<Alt><Super>r'
-command='xdg-open https://www.redbubble.com/people/gimpysticks/shop?asc=u'
-name='Redbubble'
-
-[custom14]
-binding='<Alt><Super>b'
-command='bash -c /home/sticks/bin/chgbrowser'
-name='Changer Browser'
-
-[custom15]
-binding='<Super>F3'
-command='/usr/bin/gimp'
-name='Gimp'
-
-[custom16]
 binding='<Primary><Super>d'
 command='flatpak run com.discordapp.Discord'
 name='Discord'
 
+[custom12]
+binding='<Shift><Super>s'
+command='/bin/shotcut'
+name='Shotcut'
+
+[custom13]
+binding='<Alt><Super>b'
+command='/home/sticks/bin/chgbrowser'
+name='Change Browser'
+
+[custom14]
+binding='<Super>F3'
+command='/bin/gimp'
+name='Gimp'
+
+[custom15]
+binding='<Super>F4'
+command='/bin/inkscape'
+name='Inkscape'
+
+[custom16]
+binding='<Primary><Super>s'
+command='/usr/games/steam'
+name='Steam'
+
 [custom17]
-binding='<Alt><Super>n'
-command='/home/sticks/bin/nerddict'
-name='Nerd Dictate'
+binding='<Primary><Super>w'
+command='steam://run/236390'
+name='War Thunder'
 
 [custom18]
 binding='<Alt><Super>o'
