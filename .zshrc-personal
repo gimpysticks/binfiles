@@ -1,0 +1,307 @@
+
+#alias venv35='deactivate &>/dev/null;source /home/sticks/venv35/bin/activate'
+alias jupyterNotebook='deactivate &>/dev/null;source /home/sticks/jupyterNotebook/bin/activate'
+alias s_a='/home/sticks/bin/share_adult'
+#alias venv36='deactivate &>/dev/null;source /home/sticks/venv36/bin/activate'
+alias de='deactivate'
+alias gitdotfiles='/usr/bin/git --git-dir=/home/sticks/dotfilesgit --work-tree=/home/sticks'
+alias arcopkglist='pacman -Qqe'
+alias wassup='sudo nmap -n -sP 192.168.4.0/24|grep report'
+alias killchats='killall -9 Discord & killall -9 telegram-desktop'
+alias weather='curl wttr.in/cvg'
+alias channelguide='evince /home/sticks/Documents/Spectrum_Channel_Lineup_and_Channel_Guide_Spectrum.pdf'
+alias bp='clear && /usr/bin/bpython'
+alias vs='/usr/bin/variety --selector'
+alias vim='nvim'
+alias open_all_in_vim='nvim./**/*(.)'
+alias gethw='(printf "\nCPU\n\n"; lscpu; printf "\nMEMORY\n\n"; free -h; printf "\nDISKS\n\n"; lsblk; printf "\nPCI\n\n"; lspci; printf "\nUSB\n\n"; lsusb; printf "\nNETWORK\n\n"; ifconfig) | less'
+alias local2utc='date "+%T";TZ=utc date +%T'
+alias myip="curl -s ifconfig.me"
+alias python=python3
+# navigation
+alias ..='cd ..'
+alias ...='cd ../..'
+alias .3='cd ../../..'
+alias .4='cd ../../..'
+alias .5='cd ../../../..'
+alias .6='cd ../../../../..'
+alias docs='cd Documents'
+alias chats='cd Documents/chats'
+#alias isosec='date +%G%m%dT%H%MZ'
+alias isosec='$HOME/bin/isosec'
+# git
+alias addup='git add -u'
+alias addall='git add .'
+alias branch='git branch'
+alias checkout='git checkout'
+alias commit='git commit -m'
+alias fetch='git fetch'
+alias pull='git pull origin'
+alias push='git push'
+alias status='git status'
+alias tag='git tag'
+alias newtag='git tag -a'
+# gpg encryption
+# verify signature for isos
+alias gpg-check="gpg2 --keyserver-options auto-key-retrieve --verify"
+# receive the key of a developer
+alias gpg-retrieve="gpg2 --keyserver-options auto-key-retrieve --receive-keys"
+
+# Docker aliases
+# List all containers by status using custom format
+alias dkpsa='docker ps -a --format "table {{.Names}}	{{.Image}}	{{.Status}}"'
+# Removes a container, it requires the container name \ ID as parameter
+alias dkrm='docker rm -f'
+# Removes an image, it requires the image name \ ID as parameter
+alias dkrmi='docker rmi'
+# Lists all images by repository sorted by tag name
+alias dkimg='docker image ls --format "table {{.Repository}}	{{.Tag}}	{{.ID}}" | sort'
+# Lists all persistent volumes
+alias dkvlm='docker volume ls'
+# Diplays a container log, it requires the image name \ ID as parameter
+alias dklgs='docker logs'
+# Streams a container log, it requires the image name \ ID as parameter
+alias dklgsf='docker logs -f'
+# Initiates a session withing a container, it requires the image name \ ID as parameter followed by the word "bash"
+alias dkterm='docker exec -it'
+# Starts a container, it requires the image name \ ID as parameter
+alias dkstrt='docker start'
+# Stops a container, it requires the image name \ ID as parameter
+alias dkstp='docker stop'
+# Stops or Starts Nerd Dictation
+alias ndbeg='nerd-dictation begin'
+alias ndend='nerd-dictation end'
+#nvimAliases
+# alias vmconkyproc="vim $(ps auxf|grep conky|grep -v grep|awk '{ print $13 }')"
+alias vmlightdm="sudo nvim /etc/lightdm/lightdm.conf"
+# alias vmpacman="sudo vim /etc/pacman.conf"
+alias vmgrub="sudo nvim /etc/default/grub"
+# alias vmmkinitcpio="sudo vim /etc/mkinitcpio.conf"
+# alias vmslim="sudo vim /etc/slim.conf"
+# alias vmoblogout="sudo vim /etc/oblogout.conf"
+# alias vmmirrorlist="sudo vim /etc/pacman.d/mirrorlist"
+export FZF_DEFAULT_OPTS="--extended --reverse --height=50% --border --preview-window=right:50%"
+export FZF_DEFAULT_COMMAND="fdfind -H -t f"
+export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
+export FZF_CTRL_R_OPTS="--prompt '> '"
+export FZF_CTRL_T_OPTS="--prompt '> ' --height=50% --preview 'head -100 {}'"
+export PATH=${PATH}:/home/sticks/bin
+export PATH=${PATH}:/home/sticks/.local/bin/scripts
+export PATH=${PATH}:/home/sticks/repos/MidJourney-Styles-and-Keywords-Reference/
+export PATH=${PATH}:/home/sticks/.local/bin/yt-dlp
+export PATH=${PATH}:/opt/nvim/bin
+export PATH=${PATH}:/home/sticks/.local/share/flatpak/export
+export LIBVIRT_DEFAULT_URI="qemu:///system"
+alias volicon='pkill volumeicon && volumeicon &'
+alias ki='pkill insync'
+alias ks='notify-send -t 0 "Killing Steam" && pkill steam'
+alias si='insync start'
+alias rsob='/usr/bin/openbox --restart'
+alias ud='~/bin/ud.sh|tee $HOME/updatelogs/update-$(date +%F-T%H%M).log'
+alias zzz='~/bin/sp.sh'
+alias lo='~/bin/lo.sh'
+alias tb="nc termbin.com 9999"
+alias midjourney_web="echo https://www.midjourney.com|xclip"
+alias xclip="xclip -selection clipboard"
+# alias mpv-fp='flatpak run io.mpv.Mpv '
+alias ubuntu_full_update='sudo apt update && sudo apt full-upgrade -y && \
+    sudo apt clean && sudo apt autoclean && sudo apt autoremove -y'
+alias pf='cd ~/src/pythonfiles'
+alias Pp='cd ~/src/pythonfiles/Python_Projects'
+alias chats='cd ~/Documents/chats'
+alias startchats='telegram-desktop -startintray && discord --start-minimized'
+alias cu='/usr/bin/dm-tool switch-to-greeter'
+alias mc-server='/home/sticks/bin/start_MC_local.sh'
+alias masonvnc="ssh -t wallsmason55@192.168.4.4 /home/wallsmason55/bin/runvnc.sh"
+alias nickvnc="ssh -t nickwalls@192.168.4.4 /home/nickwalls/bin/runvnc.sh"
+alias uip='comm -23 <(apt-mark showmanual | sort -u) <(gzip -dc /var/log/installer/initial-status.gz | sed -n "s/^Package: //p" | sort -u)'
+alias cb='flatpak run app.getclipboard.Clipboard'
+alias resetcam="sudo usbreset $(lsusb|grep C922|awk '{print $6}')"
+alias mjtags='xclip -selection clipboard -i <<< "#redbubble #midjourney #midjourneygallery #digitalaiartwork #kikunst #midjourneyai #generatedart #generativeai #midjourneyartwork #gimpysticks #ai #ai_art #linktr.ee/gimpysticks"'
+alias linktree='xclip -selection clipboard -i <<< "https://linktr.ee/gimpysticks"'
+alias mubert='xclip -selection clipboard -i <<< "https://www.mubert.com/render"'
+export PATH=${PATH}:/home/sticks/.local/bin
+export PATH=${PATH}:/home/sticks/thunderbird
+export PATH=${PATH}:/home/sticks/appimages
+export PATH=${PATH}:/home/sticks/bin
+export PATH=${PATH}:/home/sticks/.config/nerd-dictation
+export OPENEARDuet="CD:0E:27:D1:AF:66"
+export OraoloM91="F4:4E:FD:D6:55:B3"
+export SYSTEMD_EDITOR=nvim
+export PUBLICIP="
+$(curl -s https://icanhazip.com)"
+#Added to save commands
+export PROMPT_COMMAND='history -a'
+export gutfeld="https://www.foxnews.com/shows/gutfeld"
+export redbubble="https://www.redbubble.com/people/gimpysticks/shop?asc=u"
+export nerddict_stat="off"
+
+#set -o vi
+
+gsettings set org.gnome.desktop.input-sources xkb-options "['caps:escape']"
+
+
+#===========================================================================
+#Load TMUX on Shell Start
+#
+#if [[ -z "$TMUX" ]]
+#    if tmux has-session 2>/dev/null
+#        tmux attach
+#    else
+#        tmux
+#    fi
+#fi
+#=============================================================================
+#if [ $TILIX_ID ] || [ $VTE_VERSION ] ; then source /etc/profile.d/vte.sh; fi # Ubuntu Budgie END
+
+#===========================================================================
+#  Add vi mode to bash
+#===========================================================================
+
+function vimhelp() { vi -U None -c "help $1 | only | syntax enable"; }
+
+
+function kidspc
+{
+/usr/bin/wakeonlan f0:4d:a2:29:fa:49 #KidsLivingRoom
+}
+
+alias ducks='du -cks * |sort -rn |head'
+
+#free
+alias free="free -mt"
+
+function sd
+{
+echo -e $USERPASS|sudo -S poweroff
+}
+
+
+function rb
+{
+echo -e $USERPASS|sudo -S reboot
+}
+
+function rdm
+{
+sudo systemctl restart display-manager
+}
+# cheat for curl cht.sh/
+# usage: cheat bash/sed
+#
+function png2jpg
+{
+for png_file in *.png; do
+  basename=$(basename "$png_file" .png)
+  jpeg_file="$basename.jpg"
+  convert -quality 100 "$png_file" "$jpeg_file"
+done
+}
+
+cheat(){
+    curl cht.sh/"$1" | less
+}
+
+fe() {
+  local files
+  IFS=$'\n' files=($(fzf-tmux --query="$1" --multi --select-1 --exit-0))
+  [[ -n "$files" ]] && ${EDITOR:-vim} "${files[@]}"
+}
+
+#==============================================================================
+# export PYENV_ROOT="$HOME/.pyenv"
+# export PATH="$PYENV_ROOT/bin:$PATH"
+# eval "$(pyenv init --path)"
+# eval "$(pyenv init -)"
+# eval "$(pyenv virtualenv-init -)"
+#===================================Books======================================
+
+practicalvim () {
+    tmux new-session -n 'PracticalVim' -d
+    tmux send -t PracticalVim "evince
+    /home/sticks/Documents/docs-pdf/Pragmatic_Bookshelf/practical_vim.pdf"
+    tmux a
+}
+function jn() {
+    cd ~/src/pythonfiles
+    jupyter notebook
+}
+
+kp () {
+    pkill vivaldi-bin
+    pkill firefox
+    pkill mpv
+    tmux kill-session
+    sed -i '/oxvd/d' .zsh_history
+    sed -i '/tits/d' .zsh_history
+    clear
+
+}
+
+vimwiki () {
+    if [[ $# == 0 ]]
+    then
+        nvim +'VimwikiIndex'
+    elif [[ $1 == 'git' ]]
+    then
+        git -C ~/vimwiki/ ${@:2}
+    else
+        echo 'Usage: vimwiki [git] [args ...]'
+    fi
+}
+today () {
+    echo -n "Today's date is: "
+    date +"%A, %B %-d, %Y"
+}
+
+mntadult () {
+    if ! [[ $(findmnt -M "/mnt/adult") ]]; then
+    echo -e $USERPASS|sudo -S mkdir -p /mnt/adult
+    sleep 1
+    # echo -e $USERPASS|sudo -S mount -t cifs -o username="$USER",password="$USERPASS" -o sec="ntlmv2" //192.168.4.2/adult /mnt/adult
+    echo -e $USERPASS|sudo -S mount 192.168.4.2:/data/adult /mnt/adult
+    fi
+}
+
+nordconn () {
+    /usr/bin/nordvpn login --token $NORDTOKEN
+    /usr/bin/nordvpn connect
+}
+
+norddisconn () {
+    /usr/bin/nordvpn d
+}
+
+
+
+# eval "$(starship init zsh)" #Enables Starship prompt
+
+# loads zsh Builtin help
+autoload -Uz run-help
+autoload -Uz run-help-git
+autoload -Uz run-help-svn
+autoload run-help
+HELPDIR=/usr/share/zsh/"${ZSH_VERSION}"/help
+# unalias run-help
+# alias help=run-help
+
+# Powerlevel10k theme and configuration
+#ZSH_THEME="powerlevel10k/powerlevel10k"
+# To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
+#[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+
+# Zets workflow aliases
+alias sz="$HOME/bin/save-to-zets"
+alias az="$HOME/bin/append-to-zets"
+alias lz="$HOME/bin/list-zets"
+alias vz="cd ~/zets && ls -la"
+
+
+# Hide commands starting with underscore from completion
+zstyle ":completion:*:commands" ignored-patterns "_*"
+
+# Neovim (stable) ahead of system nvim
+source .authorizations
+
+[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
+# bindkey '^R' history-incremental-search-backward
