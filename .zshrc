@@ -110,3 +110,5 @@ export PATH="$HOME/.local/bin:$PATH"
 export FZF_CTRL_R_OPTS="--prompt '> '"
 
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
+source .zshrc-personal
+
