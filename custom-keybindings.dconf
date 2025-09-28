@@ -50,7 +50,7 @@ name='Steam'
 
 [custom17]
 binding='<Primary><Super>w'
-command='steam://run/236390'
+command='steam steam://rungameid/236390'
 name='War Thunder'
 
 [custom18]
