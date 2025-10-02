@@ -1,3 +1,34 @@
+# =============================================================================
+# Oh My Zsh Configuration
+# =============================================================================
+# Path to your oh-my-zsh installation.
+export ZSH="$HOME/.oh-my-zsh"
+
+# Set name of the theme to load
+ZSH_THEME="xiong-chiamiov" # set by `omz`
+
+# Which plugins would you like to load?
+# Standard plugins can be found in $ZSH/plugins/
+# Custom plugins may be added to $ZSH_CUSTOM/plugins/
+# Add wisely, as too many plugins slow down shell startup.
+plugins=(git)
+
+# Load Oh My Zsh
+source $ZSH/oh-my-zsh.sh
+
+# FZF will be loaded after Oh My Zsh to prevent binding conflicts
+
+# Enhanced FZF options
+export FZF_DEFAULT_OPTS="--extended --reverse --height=50% --border --preview-window=right:50%"
+export FZF_DEFAULT_COMMAND="fdfind -H -t f"
+export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
+export FZF_CTRL_R_OPTS="--prompt '> '"
+export FZF_CTRL_T_OPTS="--prompt '> ' --height=50% --preview 'head -100 {}'"
+
+# =============================================================================
+# Personal Aliases and Functions
+# =============================================================================
+
 
 #alias venv35='deactivate &>/dev/null;source /home/sticks/venv35/bin/activate'
 alias jupyterNotebook='deactivate &>/dev/null;source /home/sticks/jupyterNotebook/bin/activate'
@@ -80,11 +111,6 @@ alias vmgrub="sudo nvim /etc/default/grub"
 # alias vmslim="sudo vim /etc/slim.conf"
 # alias vmoblogout="sudo vim /etc/oblogout.conf"
 # alias vmmirrorlist="sudo vim /etc/pacman.d/mirrorlist"
-export FZF_DEFAULT_OPTS="--extended --reverse --height=50% --border --preview-window=right:50%"
-export FZF_DEFAULT_COMMAND="fdfind -H -t f"
-export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
-export FZF_CTRL_R_OPTS="--prompt '> '"
-export FZF_CTRL_T_OPTS="--prompt '> ' --height=50% --preview 'head -100 {}'"
 export PATH=${PATH}:/home/sticks/bin
 export PATH=${PATH}:/home/sticks/.local/bin/scripts
 export PATH=${PATH}:/home/sticks/repos/MidJourney-Styles-and-Keywords-Reference/
@@ -131,7 +157,7 @@ export SYSTEMD_EDITOR=nvim
 export PUBLICIP="
 $(curl -s https://icanhazip.com)"
 #Added to save commands
-export PROMPT_COMMAND='history -a'
+#export PROMPT_COMMAND='history -a'
 export gutfeld="https://www.foxnews.com/shows/gutfeld"
 export redbubble="https://www.redbubble.com/people/gimpysticks/shop?asc=u"
 export nerddict_stat="off"
@@ -303,5 +329,15 @@ zstyle ":completion:*:commands" ignored-patterns "_*"
 # Neovim (stable) ahead of system nvim
 source .authorizations
 
-[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
-# bindkey '^R' history-incremental-search-backward
+# =============================================================================
+# FZF Configuration - Load after Oh My Zsh to prevent conflicts
+# =============================================================================
+if [[ -f ~/.fzf.zsh ]]; then
+    source ~/.fzf.zsh
+    # Ensure fzf's CTRL+R binding for fuzzy history search
+    bindkey '^R' fzf-history-widget
+else
+    # Fallback to standard history search if fzf is not available
+    bindkey '^R' history-incremental-search-backward
+fi
+

@@ -112,3 +112,8 @@ export FZF_CTRL_R_OPTS="--prompt '> '"
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 source .zshrc-personal
 
+# Ensure fzf Ctrl+R binding overrides any Oh My Zsh conflicts
+if command -v fzf >/dev/null 2>&1 && [[ -n "${functions[fzf-history-widget]}" ]]; then
+  bindkey '^R' fzf-history-widget
+fi
+
