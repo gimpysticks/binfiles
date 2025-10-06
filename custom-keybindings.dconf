@@ -20,7 +20,7 @@ name='Work URLS'
 
 [custom11]
 binding='<Primary><Super>d'
-command='flatpak run com.discordapp.Discord'
+command='flatpak run com.discordapp.Discord "https://discord.com/channels/411154143567282177/1182420235672887397"'
 name='Discord'
 
 [custom12]
@@ -54,14 +54,14 @@ command='steam steam://rungameid/236390'
 name='War Thunder'
 
 [custom18]
-binding='<Alt><Super>o'
-command='snap run obs-studio'
-name='OBS Studio'
+binding='<Alt><Super>k'
+command='xdg-open https://www.grok.com'
+name='Grok'
 
 [custom19]
-binding='<Shift><Super>s'
-command='flatpak run org.shotcut.Shotcut'
-name='Shotcut'
+binding='<Super>F2'
+command='gnome-terminal --command "nvim"'
+name='LazyVin'
 
 [custom2]
 binding='<Alt><Super>g'
@@ -69,9 +69,9 @@ command='xdg-open https://gemini.google.com/app'
 name='Gemini'
 
 [custom20]
-binding='<Super>F10'
-command='spotify'
-name='Spotify'
+binding='<Alt><Super>d'
+command='xdg-open https://discord.com/channels/411154143567282177/1182420235672887397'
+name='Discord Web'
 
 [custom22]
 binding='<Primary><Super>e'
@@ -170,7 +170,7 @@ name='Facebook'
 
 [custom4]
 binding='<Primary><Super>r'
-command='sh /home/sticks/bin/readespeak.sh'
+command='bash /home/sticks/bin/readespeak.sh'
 name='ReadEspeak'
 
 [custom40]
