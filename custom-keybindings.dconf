@@ -255,5 +255,5 @@ name='ChatGpt'
 
 [custom9]
 binding='<Shift><Alt>s'
-command='flatpak run org.standardnotes.standardnotes'
+command='xdg-open https://app.standardnotes.com/'
 name='Standard Notes'
