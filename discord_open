@@ -1,0 +1,24 @@
+#!/bin/bash
+
+# Discord URL opener script
+# Usage: discord_open "https://discord.com/channels/server_id/channel_id"
+
+if [ -z "$1" ]; then
+    echo "Usage: discord_open <discord_url>"
+    echo "Example: discord_open \"https://discord.com/channels/411154143567282177/1182420235672887397\""
+    exit 1
+fi
+
+# Check if Discord is already running
+if pgrep -f "com.discordapp.Discord" > /dev/null; then
+    echo "Discord is already running, opening URL..."
+    xdg-open "$1"
+else
+    echo "Starting Discord and opening URL..."
+    # Start Discord in background
+    flatpak run com.discordapp.Discord &
+    # Wait a moment for Discord to initialize
+    sleep 3
+    # Open the URL
+    xdg-open "$1"
+fi
