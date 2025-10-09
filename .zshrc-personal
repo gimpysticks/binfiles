@@ -146,6 +146,7 @@ alias resetcam="sudo usbreset $(lsusb|grep C922|awk '{print $6}')"
 alias mjtags='xclip -selection clipboard -i <<< "#redbubble #midjourney #midjourneygallery #digitalaiartwork #kikunst #midjourneyai #generatedart #generativeai #midjourneyartwork #gimpysticks #ai #ai_art #linktr.ee/gimpysticks"'
 alias linktree='xclip -selection clipboard -i <<< "https://linktr.ee/gimpysticks"'
 alias mubert='xclip -selection clipboard -i <<< "https://www.mubert.com/render"'
+alias lg="lazygit"
 export PATH=${PATH}:/home/sticks/.local/bin
 export PATH=${PATH}:/home/sticks/thunderbird
 export PATH=${PATH}:/home/sticks/appimages
