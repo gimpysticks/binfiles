@@ -1,0 +1,18 @@
+for file in *; do
+  # Check if the item is a regular file
+  if [ -f "$file" ]; then
+    # 1. Get modification time (%Y) in seconds since epoch.
+    mtime_epoch=$(stat -c "%Y" "$file")
+
+    # 2. Use 'date -d' (date from string) to format the epoch time into YYYYMMDDHHMM
+    #    %Y: year, %m: month, %d: day, %H: hour, %M: minute
+    mtime_formatted=$(date -d "@$mtime_epoch" +%Y%m%d%H%M)
+
+    # Replace spaces in the original filename with hyphens
+    clean_file=$(echo "$file" | tr ' ' '-')
+
+    # Rename the file: prepend the formatted mtime and a hyphen
+    mv -- "$file" "${mtime_formatted}-${clean_file}"
+    echo "Renamed '$file' to '${mtime_formatted}-${clean_file}'"
+  fi
+done
