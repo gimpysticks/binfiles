@@ -1,0 +1,53 @@
+#!/bin/bash
+
+# Script to update ~/zetswiki/Home.md with current directory contents
+# Usage: update_zetswiki
+
+ZETSWIKI_DIR="$HOME/zetswiki"
+HOME_MD="$ZETSWIKI_DIR/Home.md"
+
+# Check if zetswiki directory exists
+if [[ ! -d "$ZETSWIKI_DIR" ]]; then
+    echo "Error: $ZETSWIKI_DIR directory does not exist" >&2
+    exit 1
+fi
+
+# Change to zetswiki directory
+cd "$ZETSWIKI_DIR" || exit 1
+
+# Generate new content with current markdown files
+echo "Updating Home.md with current directory contents..."
+
+# Create temporary file with new content
+temp_file=$(mktemp)
+
+# Add header
+cat > "$temp_file" << 'EOF'
+
+
+# Generated Links
+
+EOF
+
+# Find all .md files except Home.md, sort them, and create markdown links
+find . -name "*.md" -not -name "Home.md" | \
+    sed 's|^\./||' | \
+    sort | \
+    awk -F. '{print "- [" $1 "](" $0 ")"}' >> "$temp_file"
+
+# Replace Home.md with new content
+if cp "$temp_file" "$HOME_MD"; then
+    echo "Home.md updated successfully!"
+    # Show some stats
+    file_count=$(find . -name "*.md" -not -name "Home.md" | wc -l)
+    echo "Total files indexed: $file_count"
+else
+    echo "Error: Failed to update Home.md" >&2
+    rm -f "$temp_file"
+    exit 1
+fi
+
+# Clean up
+rm -f "$temp_file"
+
+echo "Done!"

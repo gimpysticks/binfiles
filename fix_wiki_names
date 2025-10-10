@@ -1,0 +1,24 @@
+#!/bin/bash
+
+# Rename the Home.md file to proper wiki name
+if [ -f "202510090051-202510090051-Home.md" ]; then
+    mv "202510090051-202510090051-Home.md" "Home.md"
+    echo "Renamed Home page"
+fi
+
+# Create a simple index of files for the wiki
+echo "# Wiki Index" > Home.md
+echo "" >> Home.md
+echo "This wiki contains the following pages:" >> Home.md
+echo "" >> Home.md
+
+# Add all markdown files except Home.md to the index
+for file in *.md; do
+    if [ "$file" != "Home.md" ]; then
+        # Extract a clean title from filename
+        title=$(echo "$file" | sed 's/^[0-9]*-[0-9]*-//g' | sed 's/\.md$//g' | tr '_' ' ')
+        echo "- [$title]($file)" >> Home.md
+    fi
+done
+
+echo "Updated Home.md with file index"

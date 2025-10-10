@@ -1,0 +1,47 @@
+#!/bin/bash
+
+# Script to remove the two leftmost timestamp components from filenames
+# Useful for cleaning up files with duplicate timestamp prefixes
+
+echo "Removing duplicate timestamp prefixes from .md files"
+echo "===================================================="
+
+# Check if we're in a directory with .md files
+if ! ls *-*.md &> /dev/null; then
+    echo "No .md files with timestamp patterns found in current directory."
+    exit 0
+fi
+
+count=0
+for file in *-*.md; do
+  if [[ -f "$file" ]]; then
+    # Extract the directory and filename
+    dir=$(dirname "$file")
+    basename_file=$(basename "$file")
+    
+    # Use parameter expansion to remove the first two timestamp components
+    # Remove first timestamp component
+    temp1=${basename_file#*-}
+    # Remove second timestamp component  
+    temp2=${temp1#*-}
+    # What's left is everything after the second dash
+    
+    new_name="$temp2"
+    new_path="$dir/$new_name"
+    
+    # Only rename if there would be a change and new name isn't empty
+    if [[ "$basename_file" != "$new_name" && -n "$new_name" ]]; then
+      mv "$file" "$new_path"
+      echo "Renamed: $basename_file -> $new_name"
+      ((count++))
+    fi
+  fi
+done
+
+echo ""
+if [[ $count -eq 0 ]]; then
+    echo "No files needed renaming."
+else
+    echo "Successfully renamed $count files."
+fi
+echo "Duplicate timestamp removal complete!"

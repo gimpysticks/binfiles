@@ -2,13 +2,14 @@
 
 # Function to generate timestamp prefix
 get_timestamp() {
-    date +"%Y%m%d-%H%M%S"
+    date +"%Y%m%d%H%M"
 }
 
-# Function to check if filename has leading timestamp
+# Function to check if filename already has a timestamp prefix
+# Looks for pattern: 12+ digits at start followed by dash
 has_timestamp() {
     local filename="$1"
-    [[ "$filename" =~ ^[0-9]{8,}[0-9]*-[0-9]*- ]]
+    [[ "$filename" =~ ^[0-9]{12,}-.*$ ]]
 }
 
 # Function to get new filename with timestamp prefix
@@ -18,15 +19,23 @@ get_new_name() {
     echo "${timestamp}-${filename}"
 }
 
-echo "Interactive file renaming - adding timestamp prefix to files without one"
-echo "======================================================================="
+echo "Interactive file renaming - adding single timestamp prefix to files without one"
+echo "==============================================================================="
+echo "Format: YYYYMMDDHHMM-filename.md"
+echo ""
+
+# Check if we're in a directory with .md files
+if ! ls *.md &> /dev/null; then
+    echo "No .md files found in current directory."
+    exit 0
+fi
 
 for file in *.md; do
-    # Skip if no .md files exist
+    # Skip if no .md files exist (shouldn't happen due to check above)
     [[ "$file" == "*.md" ]] && continue
     
-    # Skip Home.md
-    if [[ "$file" == "Home.md" ]]; then
+    # Skip Home.md and README.md
+    if [[ "$file" == "Home.md" || "$file" == "README.md" ]]; then
         echo "Skipping: $file (excluded from renaming)"
         continue
     fi
@@ -67,4 +76,4 @@ for file in *.md; do
 done
 
 echo ""
-echo "Rename process complete!"
+echo "Timestamp adding process complete!"
