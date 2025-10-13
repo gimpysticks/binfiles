@@ -61,7 +61,7 @@ name='Grok'
 [custom19]
 binding='<Super>F2'
 command='gnome-terminal --command "nvim"'
-name='LazyVin'
+name='VimWiki'
 
 [custom2]
 binding='<Alt><Super>g'
@@ -72,6 +72,11 @@ name='Gemini'
 binding='<Alt><Super>d'
 command='xdg-open https://discord.com/channels/411154143567282177/1182420235672887397'
 name='Discord Web'
+
+[custom21]
+binding='<Alt><Super>r'
+command='xdg-open https://www.redbubble.com/portfolio/manage_works?ref=account-nav-dropdown'
+name='Redbubble'
 
 [custom22]
 binding='<Primary><Super>e'
