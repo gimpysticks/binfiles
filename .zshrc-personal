@@ -342,3 +342,4 @@ else
     bindkey '^R' history-incremental-search-backward
 fi
 
+eval "$(direnv hook zsh)"
