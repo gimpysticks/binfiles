@@ -1,2 +1,2 @@
 #!/bin/bash
-lvim ~/zets/index.md
+nvim ~/zets/Home.md
