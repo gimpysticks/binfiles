@@ -1,0 +1,18 @@
+#!/bin/bash
+
+echo "Files starting with '@' before renaming:"
+ls -F | grep "^@"
+
+echo "Renaming files..."
+for f in @*; do
+  if [ -f "$f" ]; then # Ensure it's a file, not a directory
+    new_name="${f#@}"
+    echo "Renaming '$f' to '$new_name'"
+    mv "$f" "$new_name"
+  fi
+done
+
+echo "Files starting with '@' after renaming (should be empty):"
+ls -F | grep "^@"
+
+echo "Script finished."

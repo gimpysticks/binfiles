@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Script to update ~/zetswiki/Home.md with current directory contents
-# Usage: update_zetswiki
+# Script to update ~/zets/Home.md with current directory contents
+# Usage: update_zets
 
-ZETSWIKI_DIR="$HOME/zetswiki"
+ZETSWIKI_DIR="$HOME/zets"
 HOME_MD="$ZETSWIKI_DIR/Home.md"
 
 # Check if zetswiki directory exists
