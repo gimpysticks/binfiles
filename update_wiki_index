@@ -14,17 +14,20 @@ BACKUP_FILE="$HOME_FILE.backup.$(date +%Y%m%d_%H%M%S)"
 generate_display_name() {
   local filename="$1"
   local display_name
+  local timestamp="0" # Default timestamp if none found
 
   # Remove .md extension
   display_name="${filename%.md}"
 
   # Handle different filename patterns
-  if [[ "$display_name" =~ ^[0-9]+-(.+)$ ]]; then
+  if [[ "$display_name" =~ ^([0-9]+)-(.+)$ ]]; then
     # Pattern: timestamp-title (e.g., "202510012154-vim_keys")
-    display_name="${BASH_REMATCH[1]}"
-  elif [[ "$display_name" =~ ^[0-9]+-[0-9]+-(.+)$ ]]; then
+    timestamp="${BASH_REMATCH[1]}"
+    display_name="${BASH_REMATCH[2]}"
+  elif [[ "$display_name" =~ ^([0-9]+)-[0-9]+-(.+)$ ]]; then
     # Pattern: timestamp-timestamp-title (e.g., "202510012154-202510012154-Stuff")
-    display_name="${BASH_REMATCH[1]}"
+    timestamp="${BASH_REMATCH[1]}"
+    display_name="${BASH_REMATCH[2]}"
   fi
 
   # Clean up the display name
@@ -33,25 +36,25 @@ generate_display_name() {
   display_name="${display_name//-/ }"
 
   # Handle hashtags and special characters
-  display_name="${display_name//\#/ #}"
+  display_name="${display_name//#/ #}"
 
   # Clean up extra spaces
-  display_name=$(echo "$display_name" | sed 's/  \+/ /g' | sed 's/^ \+\| \+$//g')
+  display_name=$(echo "$display_name" | sed 's/  \\+/ /g' | sed 's/^ \\+\| \\+$//g')
 
-  echo "$display_name"
+  echo "$timestamp|$display_name" # Return timestamp and display name separated by |
 }
 
 # Function to extract existing links from Home.md
 get_existing_links() {
   if [[ -f "$HOME_FILE" ]]; then
     # Extract markdown links, get the filename part
-    grep -oP '^\s*-\s*\[[^\]]+\]\(\K[^)]+(?=\))' "$HOME_FILE" | sort
+    grep -oP '^\\s*-\\s*\[[^\]]+\]\\(\\K[^)]+(?=\\))' "$HOME_FILE" | sort
   fi
 }
 
 # Function to get all markdown files except Home.md
 get_all_md_files() {
-  find "$WIKI_DIR" -maxdepth 1 -name "*.md" -not -name "Home.md" -printf "%f\n" | sort
+  find "$WIKI_DIR" -maxdepth 1 -name "*.md" -not -name "Home.md" -printf "%f\\n" | sort
 }
 
 # Function to check if a file exists in the directory
@@ -60,7 +63,6 @@ file_exists() {
   [[ -f "$WIKI_DIR/$filename" ]]
 }
 
-# Main function
 main() {
   echo "Updating wiki index in $HOME_FILE"
 
@@ -75,8 +77,6 @@ main() {
   mapfile -t all_files < <(get_all_md_files)
 
   echo "Found ${#all_files[@]} markdown files in directory"
-  echo "Found ${#existing_links[@]} existing links in Home.md"
-
   # Create arrays for processing
   declare -A existing_files=()
   declare -A current_files=()
@@ -90,7 +90,6 @@ main() {
   for file in "${all_files[@]}"; do
     current_files["$file"]=1
   done
-
   # Find files to add (in directory but not in Home.md)
   files_to_add=()
   for file in "${all_files[@]}"; do
@@ -105,18 +104,15 @@ main() {
     if [[ -z "${current_files[$link]:-}" ]]; then
       files_to_remove+=("$link")
     fi
+  fi
   done
 
   echo "Files to add: ${#files_to_add[@]}"
-  echo "Files to remove: ${#files_to_remove[@]}"
-
   # If no changes needed
   if [[ ${#files_to_add[@]} -eq 0 && ${#files_to_remove[@]} -eq 0 ]]; then
     echo "No changes needed. Home.md is up to date."
     rm -f "$BACKUP_FILE"
-    return 0
   fi
-
   # Process the Home.md file
   {
     # Write header
@@ -126,27 +122,24 @@ main() {
     echo ""
 
     # Create new link list
-    declare -a new_links=()
+    declare -a new_links_with_timestamps=()
 
     # Add existing valid links
     for link in "${existing_links[@]}"; do
       if [[ -n "${current_files[$link]:-}" ]]; then
-        display_name=$(generate_display_name "$link")
-        new_links+=("- [$display_name]($link)")
+        IFS='|' read -r timestamp display_name < <(generate_display_name "$link")
+        new_links_with_timestamps+=("$timestamp|- [$display_name]($link)")
       fi
     done
 
     # Add new links
     for file in "${files_to_add[@]}"; do
-      display_name=$(generate_display_name "$file")
-      new_links+=("- [$display_name]($file)")
+      IFS='|' read -r timestamp display_name < <(generate_display_name "$file")
+      new_links_with_timestamps+=("$timestamp|- [$display_name]($file)")
     done
 
-    # Sort and output links
-    printf '%s\n' "${new_links[@]}" | sort -f
-
-  } >"$TEMP_FILE"
-
+    # Sort links by timestamp in reverse (latest first) and then extract the link part
+    printf '%s\\n' "${new_links_with_timestamps[@]}" | sort -r -t '|' -k1,1 | cut -d '|' -f2-
   # Replace original file
   mv "$TEMP_FILE" "$HOME_FILE"
 
@@ -156,86 +149,17 @@ main() {
   if [[ ${#files_to_add[@]} -gt 0 ]]; then
     echo ""
     echo "Added links for:"
-    printf '  - %s\n' "${files_to_add[@]}"
+    printf '  - %s\\n' "${files_to_add[@]}"
   fi
 
   if [[ ${#files_to_remove[@]} -gt 0 ]]; then
     echo ""
     echo "Removed links for:"
-    printf '  - %s\n' "${files_to_remove[@]}"
+    printf '  - %s\\n' "${files_to_remove[@]}"
   fi
 
   echo ""
-  echo "Total pages now indexed: $(grep -c '^- \[' "$HOME_FILE")"
+  echo "Total pages now indexed: $(grep -c '^- \\[' "$HOME_FILE")"
 }
 
-# Handle command line options
-case "${1:-}" in
---dry-run)
-  echo "DRY RUN MODE - No changes will be made"
-  echo ""
-  existing_links=($(get_existing_links))
-  all_files=($(get_all_md_files))
-
-  echo "Current files in directory: ${#all_files[@]}"
-  echo "Current links in Home.md: ${#existing_links[@]}"
-
-  # Show what would be added
-  files_to_add=()
-  for file in "${all_files[@]}"; do
-    found=false
-    for link in "${existing_links[@]}"; do
-      if [[ "$file" == "$link" ]]; then
-        found=true
-        break
-      fi
-    done
-    if [[ "$found" == "false" ]]; then
-      files_to_add+=("$file")
-    fi
-  done
-
-  # Show what would be removed
-  files_to_remove=()
-  for link in "${existing_links[@]}"; do
-    if [[ ! -f "$WIKI_DIR/$link" ]]; then
-      files_to_remove+=("$link")
-    fi
-  done
-
-  if [[ ${#files_to_add[@]} -gt 0 ]]; then
-    echo ""
-    echo "Would add links for:"
-    printf '  - %s\n' "${files_to_add[@]}"
-  fi
-
-  if [[ ${#files_to_remove[@]} -gt 0 ]]; then
-    echo ""
-    echo "Would remove links for:"
-    printf '  - %s\n' "${files_to_remove[@]}"
-  fi
-
-  if [[ ${#files_to_add[@]} -eq 0 && ${#files_to_remove[@]} -eq 0 ]]; then
-    echo "No changes would be made."
-  fi
-  ;;
---help | -h)
-  echo "Usage: $0 [--dry-run] [--help]"
-  echo ""
-  echo "Manages links in Home.md based on markdown files in the directory."
-  echo ""
-  echo "Options:"
-  echo "  --dry-run    Show what would be changed without making changes"
-  echo "  --help, -h   Show this help message"
-  echo ""
-  echo "The script will:"
-  echo "  - Add links for new .md files found in the directory"
-  echo "  - Remove links for .md files that no longer exist"
-  echo "  - Generate readable display names from filenames"
-  echo "  - Create a backup before making changes"
-  ;;
-*)
-  main "$@"
-  ;;
-esac
-
+# Handle command line options (commented out for debugging)
