@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-import SimpleHTTPServer
-import SocketServer
+import http.server
+import socketserver
 
 PORT = 8000
 
-Handler = SimpleHTTPServer.SimpleHTTPRequestHandler
+Handler = http.server.SimpleHTTPRequestHandler
 
-httpd = SocketServer.TCPServer(("", PORT), Handler)
+httpd = socketserver.TCPServer(("", PORT), Handler)
 
 print("Server running on port ", PORT)
 httpd.serve_forever()
