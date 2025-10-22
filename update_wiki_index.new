@@ -1,0 +1,85 @@
+#!/bin/bash
+
+# update_wiki_index.sh - Manages links in Home.md based on directory contents
+# This script analyzes Home.md and adds/removes links based on markdown files in the directory
+
+set -euo pipefail
+
+WIKI_DIR="/home/sticks/zets"
+HOME_FILE="$WIKI_DIR/Home.md"
+TEMP_FILE=$(mktemp)
+BACKUP_FILE="$HOME_FILE.backup.$(date +%Y%m%d_%H%M%S)"
+
+main() {
+  : # Empty body for now
+}
+
+# Handle command line options
+case "${1:-}" in
+--dry-run) 
+  echo "DRY RUN MODE - No changes will be made"
+  echo ""
+  # existing_links=($(get_existing_links)) # Commented out for debugging
+  # all_files=($(get_all_md_files)) # Commented out for debugging
+
+  echo "Current files in directory: ${#all_files[@]}"
+  echo "Current links in Home.md: ${#existing_links[@]}"
+
+  # Show what would be added
+  files_to_add=()
+  for file in "${all_files[@]}"; do
+    found=false
+    for link in "${existing_links[@]}"; do
+      if [[ "$file" == "$link" ]]; then
+        found=true
+        break
+      fi
+    done
+    if [[ "$found" == "false" ]]; then
+      files_to_add+=("$file")
+    fi
+  done
+
+  # Show what would be removed
+  files_to_remove=()
+  for link in "${existing_links[@]}"; do
+    if [[ ! -f "$WIKI_DIR/$link" ]]; then
+      files_to_remove+=("$link")
+    fi
+  done
+
+  if [[ ${#files_to_add[@]} -gt 0 ]]; then
+    echo ""
+    echo "Would add links for:"
+    printf '  - %s\n' "${files_to_add[@]}"
+  fi
+
+  if [[ ${#files_to_remove[@]} -gt 0 ]]; then
+    echo ""
+    echo "Would remove links for:"
+    printf '  - %s\n' "${files_to_remove[@]}"
+  fi
+
+  if [[ ${#files_to_add[@]} -eq 0 && ${#files_to_remove[@]} -eq 0 ]]; then
+    echo "No changes would be made."
+  fi
+  ;; 
+--help | -h) 
+  echo "Usage: $0 [--dry-run] [--help]"
+  echo ""
+  echo "Manages links in Home.md based on markdown files in the directory."
+  echo ""
+  echo "Options:"
+  echo "  --dry-run    Show what would be changed without making changes"
+  echo "  --help, -h   Show this help message"
+  echo ""
+  echo "The script will:"
+  echo "  - Add links for new .md files found in the directory"
+  echo "  - Remove links for .md files that no longer exist"
+  echo "  - Generate readable display names from filenames"
+  echo "  - Create a backup before making changes"
+  ;; 
+*)
+  main "$@"
+  ;; 
+esac
