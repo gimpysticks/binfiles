@@ -1,0 +1,2 @@
+!#/bin/bash
+pop-upgrade release upgrade -f
