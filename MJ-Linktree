@@ -1,2 +1,2 @@
 #!/bin/bash
-echo -e "https://linktr.ee/gimpysticks\nhttps://www.instagram.com/gimpysticks\n#midjourney #gimpysticks "|xclip -selection clipboard -i
+echo -e "https://linktr.ee/gimpysticks\nhttps://www.instagram.com/gimpysticks\n https://gimpysticks.redbubble.com\n #midjourney #gimpysticks " | xclip -selection clipboard -i

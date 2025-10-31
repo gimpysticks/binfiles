@@ -82,14 +82,12 @@ run_url_opener() {
 }
 
 # Create a new tmux session
-echo "Creating new tmux session: $SESSION_NAME"
 if ! tmux new-session -d -s "$SESSION_NAME"; then
   echo "Error: Failed to create new tmux session"
   exit 1
 fi
 
 # Run the URL opener function within the tmux session
-echo "Running URL opener in tmux session"
 # Pass the bookmarks file path to the function in the tmux session
 if ! tmux send-keys -t "$SESSION_NAME" "BOOKMARKS_FILE=\"$BOOKMARKS_FILE\"; $(declare -f run_url_opener); run_url_opener" C-m; then
   echo "Error: Failed to send commands to tmux session"
@@ -99,8 +97,5 @@ fi
 # Optionally attach to the session
 # Uncomment the line below if you want to attach to the session automatically
 # tmux attach-session -t "$SESSION_NAME"
-
-echo "URLs are being opened in tmux session: $SESSION_NAME"
-echo "Use 'tmux attach-session -t $SESSION_NAME' to view the session"
 
 exit 0
