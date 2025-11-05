@@ -261,6 +261,7 @@ kp () {
     pkill mpv
     tmux kill-session
     sed -i '/oxvd/d' .zsh_history
+    sed -i '/xclip/d' .zsh_history
     sed -i '/tits/d' .zsh_history
     clear
 
@@ -318,20 +319,7 @@ HELPDIR=/usr/share/zsh/"${ZSH_VERSION}"/help
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 #[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
-# Zets workflow aliases
-alias sz="$HOME/bin/save-to-zets"
-alias az="$HOME/bin/append-to-zets"
-alias lz="$HOME/bin/list-zets"
-alias vz="cd ~/zets && ls -la"
-
-
-# Hide commands starting with underscore from completion
-zstyle ":completion:*:commands" ignored-patterns "_*"
-
-# Neovim (stable) ahead of system nvim
-source .authorizations
-
-# =============================================================================
+# Zets workflow aliases alias sz="$HOME/bin/save-to-zets" alias az="$HOME/bin/append-to-zets" alias lz="$HOME/bin/list-zets" alias vz="cd ~/zets && ls -la" # Hide commands starting with underscore from completion zstyle ":completion:*:commands" ignored-patterns "_*" # Neovim (stable) ahead of system nvim source .authorizations # =============================================================================
 # FZF Configuration - Load after Oh My Zsh to prevent conflicts
 # =============================================================================
 if [[ -f ~/.fzf.zsh ]]; then
@@ -343,4 +331,5 @@ else
     bindkey '^R' history-incremental-search-backward
 fi
 
+# direnv hook
 eval "$(direnv hook zsh)"
