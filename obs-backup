@@ -1,0 +1,49 @@
+#!/bin/bash
+
+# OBS Profile Backup Script
+# Backs up OBS Studio configuration to timestamped archive
+
+set -euo pipefail
+
+# Configuration
+OBS_CONFIG_DIR="$HOME/.config/obs-studio"
+BACKUP_DIR="$HOME/bin"
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+BACKUP_FILE="$BACKUP_DIR/obs-backup_$TIMESTAMP.tar.gz"
+
+# Colors for output
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Check if OBS config directory exists
+if [ ! -d "$OBS_CONFIG_DIR" ]; then
+    echo -e "${RED}Error: OBS config directory not found at $OBS_CONFIG_DIR${NC}"
+    exit 1
+fi
+
+# Create backup directory if it doesn't exist
+mkdir -p "$BACKUP_DIR"
+
+# Create backup
+echo -e "${YELLOW}Creating OBS backup...${NC}"
+tar -czf "$BACKUP_FILE" -C "$HOME/.config" obs-studio
+
+if [ $? -eq 0 ]; then
+    BACKUP_SIZE=$(du -h "$BACKUP_FILE" | cut -f1)
+    echo -e "${GREEN}✓ Backup created successfully!${NC}"
+    echo -e "  Location: $BACKUP_FILE"
+    echo -e "  Size: $BACKUP_SIZE"
+    
+    # Optional: Keep only last 10 backups
+    BACKUP_COUNT=$(ls -1 "$BACKUP_DIR"/obs-backup_*.tar.gz 2>/dev/null | wc -l)
+    if [ "$BACKUP_COUNT" -gt 10 ]; then
+        echo -e "${YELLOW}Cleaning up old backups (keeping last 10)...${NC}"
+        ls -t "$BACKUP_DIR"/obs-backup_*.tar.gz | tail -n +11 | xargs rm -f
+        echo -e "${GREEN}✓ Cleanup complete${NC}"
+    fi
+else
+    echo -e "${RED}✗ Backup failed!${NC}"
+    exit 1
+fi
