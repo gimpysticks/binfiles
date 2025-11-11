@@ -1,0 +1,34 @@
+#!/bin/bash
+
+# Check if a filename is provided as an argument
+if [ -z "$1" ]; then
+  echo "Usage: $0 <filename>"
+  exit 1
+fi
+
+FILENAME="$1"
+
+# Check if the provided file exists
+if [ ! -f "$FILENAME" ]; then
+  echo "Error: File '$FILENAME' not found."
+  exit 1
+fi
+
+# Read content from the provided file line by line.
+while IFS= read -r line; do
+  # 'line' variable now contains the current line from the file
+
+  # --- Start of the command to run on each line ---
+  yt-dlp "$line"
+
+  # Example command: Run a command using the line content
+  # my_command "$line"
+
+  # Example command: Check if a file exists based on the line
+  # if [ -f "$line" ]; then echo "File exists!"; fi
+
+  # --- End of the command to run on each line ---
+
+done <"$FILENAME"
+
+echo "Finished processing file content."
