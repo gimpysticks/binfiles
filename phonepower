@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+
+# Try GSConnect first (KDE Connect for GNOME)
+if command -v gdbus &> /dev/null; then
+    # Get all GSConnect devices
+    DEVICES=$(gdbus call --session --dest org.gnome.Shell.Extensions.GSConnect \
+        --object-path /org/gnome/Shell/Extensions/GSConnect \
+        --method org.freedesktop.DBus.ObjectManager.GetManagedObjects 2>/dev/null)
+    
+    if [ -n "$DEVICES" ]; then
+        # Extract device ID from first connected phone
+        DEVICE_ID=$(echo "$DEVICES" | grep -oP "Device/\K[a-f0-9]+(?='.*'Connected': <true>)" | head -1)
+        
+        if [ -n "$DEVICE_ID" ]; then
+            # Get battery info
+            BATTERY_INFO=$(gdbus call --session --dest org.gnome.Shell.Extensions.GSConnect \
+                --object-path /org/gnome/Shell/Extensions/GSConnect/Device/$DEVICE_ID \
+                --method org.gtk.Actions.Describe battery 2>/dev/null)
+            
+            if [ -n "$BATTERY_INFO" ]; then
+                # Extract battery percentage and icon
+                PERCENTAGE=$(echo "$BATTERY_INFO" | grep -oP ', \K\d+(?=, \d+\)>)')
+                ICON=$(echo "$BATTERY_INFO" | grep -oP "'\K[^']+(?=', \d+, \d+)")
+                CHARGING=$(echo "$BATTERY_INFO" | grep -q "<(true" && echo " (charging)" || echo "")
+                
+                echo "Battery: ${PERCENTAGE}%${CHARGING}"
+                echo "Icon: ${ICON}"
+                exit 0
+            fi
+        fi
+    fi
+fi
+
+# Try to find phone via upower (Bluetooth/USB)
+PHONE_DEVICE=$(upower -e | grep -E 'phone|moto')
+
+if [ -n "$PHONE_DEVICE" ]; then
+    echo "Found via upower:"
+    upower -i "$PHONE_DEVICE" | grep -E 'model|percentage|state'
+    exit 0
+fi
+
+# Try ADB if available
+if command -v adb &> /dev/null; then
+    if adb devices | grep -q "device$"; then
+        echo "Found via ADB:"
+        adb shell dumpsys battery | grep -E 'level|status'
+        exit 0
+    fi
+fi
+
+echo "No phone detected. Make sure it's connected via:"
+echo "  - GSConnect (KDE Connect)"
+echo "  - Bluetooth (paired and connected)"
+echo "  - USB with ADB debugging enabled"
+exit 1

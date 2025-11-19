@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+# Find the mouse device path
+MOUSE_DEVICE=$(upower -e | grep mouse)
+
+if [ -z "$MOUSE_DEVICE" ]; then
+    echo "No mouse device found"
+    exit 1
+fi
+
+# Display battery information
+upower -i "$MOUSE_DEVICE" | grep -E 'percentage|state'
