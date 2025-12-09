@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+
+# Script to combine all markdown files from ~/zets into a single PDF
+
+# Create output directory if it doesn't exist
+output_dir="$HOME/Documents/Zets-PDF"
+mkdir -p "$output_dir"
+
+# Set output filename with timestamp
+output_file="$output_dir/zets-combined-$(date +%Y%m%d-%H%M%S).pdf"
+
+# Temporary combined markdown file
+temp_md="$(mktemp)"
+
+# Combine all markdown files
+echo "Combining markdown files..."
+for md_file in "$HOME/zets"/*.md; do
+    if [ -f "$md_file" ]; then
+        echo -e "\n\n---\n\n" >> "$temp_md"
+        cat "$md_file" >> "$temp_md"
+    fi
+done
+
+# Convert to PDF using pandoc
+echo "Converting to PDF..."
+if command -v pandoc &> /dev/null; then
+    pandoc "$temp_md" -o "$output_file" --pdf-engine=xelatex
+    echo "PDF created: $output_file"
+else
+    echo "Error: pandoc is not installed. Please install it first:"
+    echo "  sudo apt install pandoc texlive-xetex"
+    rm "$temp_md"
+    exit 1
+fi
+
+# Clean up
+rm "$temp_md"

@@ -1,0 +1,67 @@
+#!/bin/zsh
+# md2pdf - Convert markdown files to PDF using pandoc and Chrome
+# Usage: md2pdf <output.pdf> [input1.md input2.md ...]
+#        md2pdf <output.pdf> (uses *.md in current directory)
+
+set -e
+
+if [ $# -lt 1 ]; then
+    echo "Usage: md2pdf <output.pdf> [input1.md input2.md ...]"
+    echo "       md2pdf <output.pdf> (uses *.md in current directory)"
+    exit 1
+fi
+
+OUTPUT_PDF="$1"
+shift
+
+# If no input files specified, use all .md files in current directory
+if [ $# -eq 0 ]; then
+    INPUT_FILES=(*.md)
+    if [ ! -f "${INPUT_FILES[1]}" ]; then
+        echo "Error: No markdown files found in current directory"
+        exit 1
+    fi
+else
+    INPUT_FILES=("$@")
+fi
+
+# Create temporary HTML file
+TEMP_HTML=$(mktemp /tmp/md2pdf.XXXXXX.html)
+trap "rm -f $TEMP_HTML" EXIT
+
+# Convert markdown to HTML with pandoc
+echo "Converting markdown to HTML..."
+pandoc "${INPUT_FILES[@]}" -o "$TEMP_HTML" --standalone --toc 2>/dev/null || {
+    echo "Warning: pandoc encountered some issues, but continuing..."
+    pandoc "${INPUT_FILES[@]}" -o "$TEMP_HTML" --standalone --toc 2>&1 | grep -i error || true
+}
+
+# Convert HTML to PDF using Chrome headless
+echo "Converting HTML to PDF..."
+if command -v google-chrome &> /dev/null; then
+    CHROME_CMD="google-chrome"
+elif command -v chromium-browser &> /dev/null; then
+    CHROME_CMD="chromium-browser"
+elif command -v chromium &> /dev/null; then
+    CHROME_CMD="chromium"
+else
+    echo "Error: Chrome/Chromium not found. Please install google-chrome or chromium-browser."
+    exit 1
+fi
+
+# Expand output path to absolute path
+OUTPUT_PDF_ABS=$(realpath -m "$OUTPUT_PDF")
+OUTPUT_DIR=$(dirname "$OUTPUT_PDF_ABS")
+
+# Create output directory if it doesn't exist
+mkdir -p "$OUTPUT_DIR"
+
+$CHROME_CMD --headless --disable-gpu --print-to-pdf="$OUTPUT_PDF_ABS" "file://$TEMP_HTML" 2>&1 | grep -v "VAAPI\|GPU" || true
+
+if [ -f "$OUTPUT_PDF_ABS" ]; then
+    echo "PDF created successfully: $OUTPUT_PDF_ABS"
+    ls -lh "$OUTPUT_PDF_ABS"
+else
+    echo "Error: Failed to create PDF"
+    exit 1
+fi

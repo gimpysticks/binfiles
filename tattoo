@@ -1,0 +1,2 @@
+ #!/bin/bash
+echo ",boho, line art --p m7366653078335914026 --stylize 50"|xclip -selection clipboard -i

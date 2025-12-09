@@ -35,7 +35,7 @@ for file in *.md; do
     [[ "$file" == "*.md" ]] && continue
     
     # Skip Home.md and README.md
-    if [[ "$file" == "Home.md" || "$file" == "README.md" ]]; then
+    if [[ "$file" == "index.md" || "$file" == "README.md" ]]; then
         echo "Skipping: $file (excluded from renaming)"
         continue
     fi

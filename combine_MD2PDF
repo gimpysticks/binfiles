@@ -1,0 +1,94 @@
+#!/usr/bin/env zsh
+
+# Script to combine all markdown files from ~/zets/ into a single PDF
+# Output: ~/Documents/Zets-PDF/combined_zets_<timestamp>.pdf
+
+set -e
+
+# Define paths
+ZETS_DIR="$HOME/zets"
+OUTPUT_DIR="$HOME/Documents/Zets-PDF"
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+OUTPUT_FILE="$OUTPUT_DIR/combined_zets_$TIMESTAMP.pdf"
+
+# Create output directory if it doesn't exist
+mkdir -p "$OUTPUT_DIR"
+
+# Check if there are any markdown files
+if ! ls "$ZETS_DIR"/*.md &> /dev/null; then
+    echo "Error: No markdown files found in $ZETS_DIR"
+    exit 1
+fi
+
+# Check if pandoc is installed
+if ! command -v pandoc &> /dev/null; then
+    echo "Error: pandoc is not installed. Install it with: sudo apt install pandoc"
+    exit 1
+fi
+
+echo "Combining markdown files from $ZETS_DIR..."
+echo "Output will be saved to: $OUTPUT_FILE"
+
+# Create temporary directory for sanitized files
+TEMP_DIR=$(mktemp -d)
+trap "rm -rf $TEMP_DIR" EXIT
+
+# Create LaTeX header file for better underscore handling
+cat > "$TEMP_DIR/header.tex" << 'EOF'
+\usepackage{underscore}
+EOF
+
+# Sanitize markdown files by removing unsupported Unicode characters
+echo "Sanitizing markdown files..."
+find "$ZETS_DIR" -maxdepth 1 -name "*.md" -type f -exec file --mime-encoding {} \; | \
+    grep -v "binary" | \
+    cut -d: -f1 | \
+    sort | \
+    while IFS= read -r file; do
+        basename_file=$(basename "$file")
+        # Remove problematic Unicode characters that LaTeX can't handle
+        # This includes CJK characters (Chinese, Japanese, Korean), emojis, and other symbols
+        # Escape problematic escape sequences (\n, \t, etc.) to prevent LaTeX control sequence errors
+        # Wrap command-like lines (starting with common commands or containing pipes/redirects) in code blocks
+        perl -CSD -ne '
+            BEGIN { $in_yaml = 0; $in_code = 0; }
+            # Track YAML frontmatter
+            if (/^---\s*$/) { $in_yaml = !$in_yaml; print; next; }
+            if ($in_yaml) { print; next; }
+            # Track code blocks
+            if (/^```/) { $in_code = !$in_code; print; next; }
+            if ($in_code) { print; next; }
+            # Remove problematic Unicode
+            s/[\x{4E00}-\x{9FFF}\x{3040}-\x{309F}\x{30A0}-\x{30FF}\x{FF00}-\x{FFEF}\x{1F300}-\x{1F9FF}\x{2600}-\x{26FF}\x{2700}-\x{27BF}]//g;
+            s/\\n/\\\\n/g;
+            s/\\t/\\\\t/g;
+            s/\\#/\\\\#/g;
+            # Wrap command-like lines (containing common command patterns or underscores in filenames)
+            if (/^(cat|grep|jq|echo|youtube-dl|ddgr|find|sed|awk|perl)\s/ || /\||\$\(|\$1|>/ || (/\w+_\w+/ && !/^\s*[#*-]/ && !/^\w+:/)) {
+                print "`$_`\n";
+            } else {
+                print;
+            }
+        ' "$file" > "$TEMP_DIR/$basename_file"
+    done
+
+# Combine all sanitized markdown files and convert to PDF
+find "$TEMP_DIR" -name "*.md" -type f | \
+    sort | \
+    xargs pandoc -o "$OUTPUT_FILE" \
+    --pdf-engine=xelatex \
+    --toc \
+    --toc-depth=2 \
+    -V geometry:margin=1in \
+    -V linkcolor:blue \
+    -V monofont="DejaVu Sans Mono" \
+    --highlight-style=tango \
+    --from=markdown+autolink_bare_uris \
+    -H "$TEMP_DIR/header.tex"
+
+if [ $? -eq 0 ]; then
+    echo "✓ PDF created successfully: $OUTPUT_FILE"
+else
+    echo "✗ Error creating PDF"
+    exit 1
+fi

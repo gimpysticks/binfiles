@@ -45,6 +45,7 @@ alias channelguide='evince /home/sticks/Documents/Spectrum_Channel_Lineup_and_Ch
 alias bp='clear && /usr/bin/bpython'
 alias vs='/usr/bin/variety --selector'
 alias vim='nvim'
+alias uwi='~/bin/update_wiki_index'
 alias open_all_in_vim='nvim./**/*(.)'
 alias gethw='(printf "\nCPU\n\n"; lscpu; printf "\nMEMORY\n\n"; free -h; printf "\nDISKS\n\n"; lsblk; printf "\nPCI\n\n"; lspci; printf "\nUSB\n\n"; lsusb; printf "\nNETWORK\n\n"; ifconfig) | less'
 alias local2utc='date "+%T";TZ=utc date +%T'
@@ -262,7 +263,7 @@ kp () {
     tmux kill-session
     sed -i '/oxvd/d' .zsh_history
     sed -i '/xclip/d' .zsh_history
-    sed -i '/tits/d' .zsh_history
+    sed -i '/yt-dlp/' .zsh_history
     clear
 
 }

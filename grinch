@@ -1,0 +1,2 @@
+#!/bin/bash
+echo "Grinch portrayed as "|xclip -selection clipboard -i

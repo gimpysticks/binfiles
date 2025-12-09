@@ -5,7 +5,7 @@ import os
 import markdown
 
 PORT = 8000
-MARKDOWN_FILE = "Home.md" # The exact, case-sensitive filename
+MARKDOWN_FILE = "index.md" # The exact, case-sensitive filename
 
 class MarkdownHandler(http.server.SimpleHTTPRequestHandler):
     """

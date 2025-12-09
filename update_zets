@@ -4,7 +4,7 @@
 # Usage: update_zets
 
 ZETSWIKI_DIR="$HOME/zets"
-HOME_MD="$ZETSWIKI_DIR/Home.md"
+HOME_MD="$ZETSWIKI_DIR/index.md"
 
 # Check if zetswiki directory exists
 if [[ ! -d "$ZETSWIKI_DIR" ]]; then
@@ -16,7 +16,7 @@ fi
 cd "$ZETSWIKI_DIR" || exit 1
 
 # Generate new content with current markdown files
-echo "Updating Home.md with current directory contents..."
+echo "Updating index.md with current directory contents..."
 
 # Create temporary file with new content
 temp_file=$(mktemp)
@@ -29,20 +29,20 @@ cat > "$temp_file" << 'EOF'
 
 EOF
 
-# Find all .md files except Home.md, sort them, and create markdown links
-find . -name "*.md" -not -name "Home.md" | \
+# Find all .md files except index.md, sort them, and create markdown links
+find . -name "*.md" -not -name "index.md" | \
     sed 's|^\./||' | \
     sort | \
     awk -F. '{print "- [" $1 "](" $0 ")"}' >> "$temp_file"
 
-# Replace Home.md with new content
+# Replace index.md with new content
 if cp "$temp_file" "$HOME_MD"; then
-    echo "Home.md updated successfully!"
+    echo "index.md updated successfully!"
     # Show some stats
-    file_count=$(find . -name "*.md" -not -name "Home.md" | wc -l)
+    file_count=$(find . -name "*.md" -not -name "index.md" | wc -l)
     echo "Total files indexed: $file_count"
 else
-    echo "Error: Failed to update Home.md" >&2
+    echo "Error: Failed to update index.md" >&2
     rm -f "$temp_file"
     exit 1
 fi
