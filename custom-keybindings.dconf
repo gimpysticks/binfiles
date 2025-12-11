@@ -79,14 +79,14 @@ command='xdg-open https://www.redbubble.com/portfolio/manage_works?ref=account-n
 name='Redbubble'
 
 [custom22]
-binding='<Primary><Super>e'
-command='flatpak run im.riot.Riot'
-name='Element'
+binding='<Primary><Super>a'
+command='/home/sticks/bin/aiurls'
+name='AI Urls'
 
 [custom23]
-binding='<Alt><Super>o'
-command='flatpak run md.obsidian.Obsidian'
-name='Obsidian'
+binding='<Super>F10'
+command='xdg-open https://music.youtube.com/'
+name='Youtube Music'
 
 [custom24]
 binding='<Primary><Super>s'
