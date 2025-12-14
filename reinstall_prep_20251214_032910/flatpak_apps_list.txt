@@ -1,0 +1,16 @@
+ca.desrt.dconf-editor
+com.bitwarden.desktop
+com.discordapp.Discord
+com.freerdp.FreeRDP
+com.getmailspring.Mailspring
+com.github.tchx84.Flatseal
+com.google.Chrome
+com.obsproject.Studio
+com.usebottles.bottles
+io.github.getnf.embellish
+org.gnome.Connections
+org.gnome.clocks
+org.standardnotes.standardnotes
+org.tenacityaudio.Tenacity
+org.vinegarhq.Sober
+org.vinegarhq.Vinegar

@@ -1,0 +1,3 @@
+/home/sticks/Beeper-4.1.186.AppImage
+/home/sticks/Spotify-x86_64.AppImage
+/home/sticks/Applications/Beeper-4.2.330-x86_64.AppImage
