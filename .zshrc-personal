@@ -3,9 +3,9 @@
 # =============================================================================
 # Path to your oh-my-zsh installation.
 export ZSH="$HOME/.oh-my-zsh"
+source .authorizations
 
-# Se tname of the theme to load
-# t
+# Set name of the theme to load
 ZSH_THEME="xiong-chiamiov" # set by `omz`
 
 # Which plugins would you like to load?
@@ -43,6 +43,7 @@ alias killchats='killall -9 Discord & killall -9 telegram-desktop'
 alias weather='curl wttr.in/cvg'
 alias channelguide='evince /home/sticks/Documents/Spectrum_Channel_Lineup_and_Channel_Guide_Spectrum.pdf'
 alias bp='clear && /usr/bin/bpython'
+alias lg='lazygit'
 alias vs='/usr/bin/variety --selector'
 alias vim='nvim'
 alias uwi='~/bin/update_wiki_index'
@@ -96,7 +97,7 @@ alias dklgs='docker logs'
 # Streams a container log, it requires the image name \ ID as parameter
 alias dklgsf='docker logs -f'
 # Initiates a session withing a container, it requires the image name \ ID as parameter followed by the word "bash"
-alias dkterm='docker exec -it'
+alias dkterm='docker exec -it -- bash'
 # Starts a container, it requires the image name \ ID as parameter
 alias dkstrt='docker start'
 # Stops a container, it requires the image name \ ID as parameter
@@ -113,49 +114,7 @@ alias vmgrub="sudo nvim /etc/default/grub"
 # alias vmslim="sudo vim /etc/slim.conf"
 # alias vmoblogout="sudo vim /etc/oblogout.conf"
 # alias vmmirrorlist="sudo vim /etc/pacman.d/mirrorlist"
-export PATH=${PATH}:/home/sticks/bin
-export PATH=${PATH}:/home/sticks/.local/bin/scripts
-export PATH=${PATH}:/home/sticks/repos/MidJourney-Styles-and-Keywords-Reference/
-export PATH=${PATH}:/home/sticks/.local/bin/yt-dlp
-export PATH=${PATH}:/opt/nvim/bin
-export PATH=${PATH}:/home/sticks/.local/share/flatpak/export
-export LIBVIRT_DEFAULT_URI="qemu:///system"
-export GEMINI_MODEL="gemini-2.5-flash"
-# export GEMINI_MODEL="gemini-2.5-flash-lite"
-alias volicon='pkill volumeicon && volumeicon &'
-alias ki='pkill insync'
-alias ks='notify-send -t 0 "Killing Steam" && pkill steam'
-alias si='insync start'
-alias rsob='/usr/bin/openbox --restart'
-alias ud='~/bin/ud.sh|tee $HOME/updatelogs/update-$(date +%F-T%H%M).log'
-alias zzz='~/bin/sp.sh'
-alias lo='~/bin/lo.sh'
-alias tb="nc termbin.com 9999"
-alias midjourney_web="echo https://www.midjourney.com|xclip"
-alias xclip="xclip -selection clipboard"
-# alias mpv-fp='flatpak run io.mpv.Mpv '
-alias ubuntu_full_update='sudo apt update && sudo apt full-upgrade -y && \
-    sudo apt clean && sudo apt autoclean && sudo apt autoremove -y'
-alias pf='cd ~/src/pythonfiles'
-alias Pp='cd ~/src/pythonfiles/Python_Projects'
-alias chats='cd ~/Documents/chats'
-alias startchats='telegram-desktop -startintray && discord --start-minimized'
-alias cu='/usr/bin/dm-tool switch-to-greeter'
-alias mc-server='/home/sticks/bin/start_MC_local.sh'
-alias masonvnc="ssh -t wallsmason55@192.168.4.4 /home/wallsmason55/bin/runvnc.sh"
-alias nickvnc="ssh -t nickwalls@192.168.4.4 /home/nickwalls/bin/runvnc.sh"
-alias uip='comm -23 <(apt-mark showmanual | sort -u) <(gzip -dc /var/log/installer/initial-status.gz | sed -n "s/^Package: //p" | sort -u)'
-alias cb='flatpak run app.getclipboard.Clipboard'
-alias resetcam="sudo usbreset $(lsusb|grep C922|awk '{print $6}')"
-alias mjtags='xclip -selection clipboard -i <<< "#redbubble #midjourney #midjourneygallery #digitalaiartwork #kikunst #midjourneyai #generatedart #generativeai #midjourneyartwork #gimpysticks #ai #ai_art #linktr.ee/gimpysticks"'
-alias linktree='xclip -selection clipboard -i <<< "https://linktr.ee/gimpysticks"'
-alias mubert='xclip -selection clipboard -i <<< "https://www.mubert.com/render"'
-alias lg="lazygit"
-export PATH=${PATH}:/home/sticks/.local/bin
-export PATH=${PATH}:/home/sticks/thunderbird
-export PATH=${PATH}:/home/sticks/appimages
-export PATH=${PATH}:/home/sticks/bin
-export PATH=${PATH}:/home/sticks/.config/nerd-dictation
+export PATH="${PATH}:/home/sticks/bin:/home/sticks/.local/bin/scripts:/home/sticks/repos/MidJourney-Styles-and-Keywords-Reference/:/home/sticks/.local/bin/yt-dlp:/opt/nvim/bin:/home/sticks/.local/share/flatpak/export:/home/sticks/.local/bin:/home/sticks/thunderbird:/home/sticks/appimages:/home/sticks/.config/nerd-dictation"
 export OPENEARDuet="CD:0E:27:D1:AF:66"
 export OraoloM91="F4:4E:FD:D6:55:B3"
 export SYSTEMD_EDITOR=nvim
@@ -233,11 +192,7 @@ cheat(){
     curl cht.sh/"$1" | less
 }
 
-fe() {
-  local files
-  IFS=$'\n' files=($(fzf-tmux --query="$1" --multi --select-1 --exit-0))
-  [[ -n "$files" ]] && ${EDITOR:-vim} "${files[@]}"
-}
+
 
 #==============================================================================
 # export PYENV_ROOT="$HOME/.pyenv"
@@ -265,7 +220,7 @@ kp () {
     tmux kill-session
     sed -i '/oxvd/d' .zsh_history
     sed -i '/xclip/d' .zsh_history
-    sed -i '/yt-dlp/' .zsh_history
+    sed -i \'/yt-dlp/d\' .zsh_history
     clear
 
 }
@@ -322,7 +277,11 @@ HELPDIR=/usr/share/zsh/"${ZSH_VERSION}"/help
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 #[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
-# Zets workflow aliases alias sz="$HOME/bin/save-to-zets" alias az="$HOME/bin/append-to-zets" alias lz="$HOME/bin/list-zets" alias vz="cd ~/zets && ls -la" # Hide commands starting with underscore from completion zstyle ":completion:*:commands" ignored-patterns "_*" # Neovim (stable) ahead of system nvim source .authorizations # =============================================================================
+# Zets workflow aliases
+alias sz="$HOME/bin/save-to-zets"
+alias az="$HOME/bin/append-to-zets"
+alias lz="$HOME/bin/list-zets"
+alias vz="cd ~/zets && ls -la" # Hide commands starting with underscore from completion zstyle ":completion:*:commands" ignored-patterns "_*" # Neovim (stable) ahead of system nvim source .authorizations # =============================================================================
 # FZF Configuration - Load after Oh My Zsh to prevent conflicts
 # =============================================================================
 if [[ -f ~/.fzf.zsh ]]; then
@@ -333,6 +292,12 @@ else
     # Fallback to standard history search if fzf is not available
     bindkey '^R' history-incremental-search-backward
 fi
+
+fe() {
+  local files
+  IFS=$'\n' files=($(fzf-tmux --query="$1" --multi --select-1 --exit-0))
+  [[ -n "$files" ]] && ${EDITOR:-vim} "${files[@]}"
+}
 
 # direnv hook
 eval "$(direnv hook zsh)"

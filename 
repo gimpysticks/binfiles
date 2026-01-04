@@ -1,37 +1,118 @@
-#!/usr/bin/env bash
+#!/bin/bash
+# VSDinside M18 + OBS Setup: Windows 11 VM with USB Passthrough
+# This script helps you set up a minimal Windows 11 VM to program your M18 macropad
 
-# Script to combine all markdown files from ~/zets into a single PDF
+set -e
 
-# Create output directory if it doesn't exist
-output_dir="$HOME/Documents/Zets-PDF"
-mkdir -p "$output_dir"
+echo "=== VSDinside M18 Setup Helper ==="
+echo ""
+echo "This will help you set up a Windows 11 VM to program your M18 macropad."
+echo "Once programmed, the M18's settings are stored in firmware and will work on Linux."
+echo ""
 
-# Set output filename with timestamp
-output_file="$output_dir/zets-combined-$(date +%Y%m%d-%H%M%S).pdf"
+# Check if virt-manager is installed
+if ! command -v virt-manager &> /dev/null; then
+    echo "Installing virtualization tools..."
+    sudo apt update
+    sudo apt install -y qemu-kvm libvirt-daemon-system libvirt-clients bridge-utils virt-manager ovmf
+    
+    # Add user to necessary groups
+    sudo usermod -a -G libvirt $USER
+    sudo usermod -a -G kvm $USER
+    
+    echo ""
+    echo "✅ Virtualization tools installed!"
+    echo "⚠️  You need to log out and log back in for group changes to take effect."
+    echo ""
+    read -p "Press Enter to continue after logging out and back in..."
+fi
 
-# Temporary combined markdown file
-temp_md="$(mktemp)"
-
-# Combine all markdown files
-echo "Combining markdown files..."
-for md_file in "$HOME/zets"/*.md; do
-    if [ -f "$md_file" ]; then
-        echo -e "\n\n---\n\n" >> "$temp_md"
-        cat "$md_file" >> "$temp_md"
-    fi
-done
-
-# Convert to PDF using pandoc
-echo "Converting to PDF..."
-if command -v pandoc &> /dev/null; then
-    pandoc "$temp_md" -o "$output_file" --pdf-engine=xelatex
-    echo "PDF created: $output_file"
-else
-    echo "Error: pandoc is not installed. Please install it first:"
-    echo "  sudo apt install pandoc texlive-xetex"
-    rm "$temp_md"
+# Check if user is in required groups
+if ! groups $USER | grep -q "libvirt\|kvm"; then
+    echo "⚠️  You need to be in the 'libvirt' and 'kvm' groups."
+    echo "Run these commands and log out/in:"
+    echo "  sudo usermod -a -G libvirt $USER"
+    echo "  sudo usermod -a -G kvm $USER"
     exit 1
 fi
 
-# Clean up
-rm "$temp_md"
+# Get M18 USB device info
+echo "Looking for your VSDinside M18..."
+M18_INFO=$(lsusb | grep "5548:1000")
+if [ -z "$M18_INFO" ]; then
+    echo "❌ M18 not found. Make sure it's plugged in."
+    exit 1
+fi
+
+echo "✅ Found M18: $M18_INFO"
+echo ""
+
+# Extract bus and device numbers
+BUS=$(echo "$M18_INFO" | awk '{print $2}')
+DEV=$(echo "$M18_INFO" | awk '{print $4}' | tr -d ':')
+
+echo "M18 USB Location:"
+echo "  Bus: $BUS"
+echo "  Device: $DEV"
+echo "  Vendor ID: 5548"
+echo "  Product ID: 1000"
+echo ""
+
+# Download Windows 11 ISO info
+echo "=== Next Steps ==="
+echo ""
+echo "1. Download Windows 11 ISO:"
+echo "   https://www.microsoft.com/software-download/windows11"
+echo ""
+echo "2. Launch virt-manager:"
+echo "   virt-manager"
+echo ""
+echo "3. Create a new VM:"
+echo "   - Click 'Create a new virtual machine'"
+echo "   - Select 'Local install media'"
+echo "   - Choose the Windows 11 ISO"
+echo "   - Allocate 4GB RAM and 40GB disk (minimum)"
+echo "   - Before finishing, check 'Customize configuration before install'"
+echo ""
+echo "4. Add USB passthrough:"
+echo "   - In the VM configuration, click 'Add Hardware'"
+echo "   - Select 'USB Host Device'"
+echo "   - Find: 'HOTSPOTEKUSB HOTSPOTEKUSB HID DEMO'"
+echo "   - Click 'Finish'"
+echo ""
+echo "5. Start the VM and install Windows 11"
+echo ""
+echo "6. In Windows:"
+echo "   - Download VSD Craft from: https://www.vsdinside.com/"
+echo "   - Program your M18 keys to send keyboard shortcuts"
+echo "   - Configure keys for OBS (F13-F24 or Ctrl+Shift+keys)"
+echo ""
+echo "7. Back in Pop!_OS:"
+echo "   - Open OBS Studio"
+echo "   - Go to Settings → Hotkeys"
+echo "   - Assign actions to match the M18 key mappings"
+echo ""
+echo "The M18 stores settings in firmware, so once programmed,"
+echo "it will work directly on Linux without the VM running!"
+echo ""
+echo "=== Optional: Quick VM Script ==="
+echo ""
+echo "If you want to use command-line QEMU instead of virt-manager,"
+echo "save this command (after downloading Windows ISO):"
+echo ""
+cat << 'EOF'
+qemu-system-x86_64 \
+  -enable-kvm \
+  -m 4G \
+  -smp 2 \
+  -drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE.fd \
+  -drive if=pflash,format=raw,file=~/win11-vars.fd \
+  -cdrom ~/Downloads/Win11.iso \
+  -drive file=~/win11.qcow2,if=virtio,format=qcow2 \
+  -device qemu-xhci,id=xhci \
+  -device usb-host,vendorid=0x5548,productid=0x1000 \
+  -net nic,model=virtio-net-pci \
+  -net user
+EOF
+echo ""
+echo "Run this script again after logging out/in if needed."

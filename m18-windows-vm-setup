@@ -1,0 +1,179 @@
+#!/bin/bash
+
+# M18 Windows VM Setup Helper
+# This script helps set up a Windows 11 VM with USB passthrough for programming the M18 device
+
+set -e
+
+COLOR_RESET='\033[0m'
+COLOR_BLUE='\033[0;34m'
+COLOR_GREEN='\033[0;32m'
+COLOR_YELLOW='\033[1;33m'
+COLOR_RED='\033[0;31m'
+
+print_header() {
+    echo -e "\n${COLOR_BLUE}==== $1 ====${COLOR_RESET}\n"
+}
+
+print_success() {
+    echo -e "${COLOR_GREEN}✓ $1${COLOR_RESET}"
+}
+
+print_warning() {
+    echo -e "${COLOR_YELLOW}⚠ $1${COLOR_RESET}"
+}
+
+print_error() {
+    echo -e "${COLOR_RED}✗ $1${COLOR_RESET}"
+}
+
+print_info() {
+    echo -e "${COLOR_BLUE}ℹ $1${COLOR_RESET}"
+}
+
+check_virtualization() {
+    print_header "Checking Virtualization Support"
+    
+    if ! grep -qE 'vmx|svm' /proc/cpuinfo; then
+        print_error "CPU virtualization not supported or not enabled in BIOS"
+        exit 1
+    fi
+    print_success "CPU virtualization is supported"
+    
+    if ! lsmod | grep -q kvm; then
+        print_warning "KVM module not loaded"
+    else
+        print_success "KVM module is loaded"
+    fi
+}
+
+install_virtualization() {
+    print_header "Installing Virtualization Tools"
+    
+    if command -v virt-manager &> /dev/null && command -v qemu-system-x86_64 &> /dev/null; then
+        print_success "Virtualization tools already installed"
+        return
+    fi
+    
+    print_info "Installing KVM/QEMU and virt-manager..."
+    sudo apt update
+    sudo apt install -y qemu-kvm libvirt-daemon-system libvirt-clients bridge-utils virt-manager ovmf
+    
+    print_info "Adding user to libvirt groups..."
+    sudo usermod -aG libvirt $(whoami)
+    sudo usermod -aG kvm $(whoami)
+    
+    print_success "Virtualization tools installed"
+    print_warning "You may need to log out and back in for group changes to take effect"
+}
+
+detect_m18() {
+    print_header "Detecting M18 Device"
+    
+    print_info "Searching for M18 USB device..."
+    if lsusb | grep -i "vsd"; then
+        print_success "M18 device detected"
+        echo ""
+        lsusb | grep -i "vsd"
+        echo ""
+        USB_INFO=$(lsusb | grep -i "vsd" | head -n1)
+        return 0
+    else
+        print_warning "M18 not detected. Please plug in the device and run this script again."
+        print_info "Looking for any VSD-related USB devices..."
+        lsusb | grep -i "stream\|deck\|macro\|vsd" || print_info "No similar devices found"
+        return 1
+    fi
+}
+
+setup_windows_vm() {
+    print_header "Windows 11 VM Setup"
+    
+    echo "This script will guide you through creating a Windows 11 VM with USB passthrough."
+    echo ""
+    print_info "You will need:"
+    echo "  1. Windows 11 ISO file"
+    echo "  2. At least 40GB free disk space"
+    echo "  3. Your M18 device plugged in"
+    echo ""
+    
+    read -p "Do you have a Windows 11 ISO ready? (y/n): " has_iso
+    if [[ $has_iso != "y" ]]; then
+        print_info "Download Windows 11 ISO from: https://www.microsoft.com/software-download/windows11"
+        exit 0
+    fi
+    
+    read -p "Enter the full path to your Windows 11 ISO: " iso_path
+    if [[ ! -f "$iso_path" ]]; then
+        print_error "ISO file not found at: $iso_path"
+        exit 1
+    fi
+    
+    print_success "ISO file found"
+    
+    print_header "Creating VM with virt-manager"
+    
+    echo ""
+    print_info "Opening virt-manager..."
+    print_info "Follow these steps in virt-manager:"
+    echo ""
+    echo "1. Click 'Create a new virtual machine'"
+    echo "2. Select 'Local install media' → Forward"
+    echo "3. Browse and select your Windows 11 ISO: $iso_path"
+    echo "4. Set OS: Microsoft Windows 11"
+    echo "5. Memory: 4096 MB (4GB minimum)"
+    echo "6. CPUs: 2"
+    echo "7. Disk: 40 GB"
+    echo "8. Name: 'Windows11-M18-Setup'"
+    echo "9. Check 'Customize configuration before install'"
+    echo "10. Click Finish"
+    echo ""
+    print_warning "IMPORTANT: In the configuration window before starting:"
+    echo "   - Overview → Firmware: Change to 'UEFI x86_64: /usr/share/OVMF/OVMF_CODE.fd'"
+    echo "   - Add Hardware → USB Host Device → Select your M18 device"
+    echo ""
+    
+    read -p "Press Enter to launch virt-manager..."
+    virt-manager &
+}
+
+print_post_install() {
+    print_header "Next Steps"
+    
+    echo "After Windows 11 is installed:"
+    echo ""
+    print_info "1. In Windows VM:"
+    echo "   - Download VSD Craft software from M18 manufacturer"
+    echo "   - Program your M18 with desired key mappings"
+    echo "   - Firmware stores settings permanently on device"
+    echo ""
+    print_info "2. On Pop!_OS:"
+    echo "   - Shutdown the VM"
+    echo "   - Unplug and replug the M18"
+    echo "   - Configure OBS hotkeys to match M18 key mappings"
+    echo "   - The M18 will work natively on Linux!"
+    echo ""
+    print_success "The beauty: You only need Windows once to program the device!"
+}
+
+main() {
+    print_header "M18 Windows VM Setup Helper"
+    
+    check_virtualization
+    install_virtualization
+    
+    if detect_m18; then
+        echo ""
+        read -p "Proceed with Windows VM setup? (y/n): " proceed
+        if [[ $proceed == "y" ]]; then
+            setup_windows_vm
+            print_post_install
+        fi
+    fi
+    
+    echo ""
+    print_success "Setup helper complete!"
+    echo ""
+}
+
+main "$@"

@@ -1,0 +1,2 @@
+ #!/bin/bash
+echo "Convert to text, place the user and hashtag on separate lines below each item, Export this as markdown, Standard Notes-friendly"|xclip -selection clipboard -i
