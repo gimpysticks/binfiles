@@ -3,7 +3,7 @@
 # =============================================================================
 # Path to your oh-my-zsh installation.
 export ZSH="$HOME/.oh-my-zsh"
-source .authorizations
+# source $HOME/.authorizations  # File does not exist
 
 # Set name of the theme to load
 ZSH_THEME="xiong-chiamiov" # set by `omz`
@@ -46,6 +46,7 @@ alias bp='clear && /usr/bin/bpython'
 alias lg='lazygit'
 alias vs='/usr/bin/variety --selector'
 alias vim='nvim'
+alias lo="/home/sticks/bin/lo.sh"
 alias uwi='~/bin/update_wiki_index'
 alias open_all_in_vim='nvim./**/*(.)'
 alias gethw='(printf "\nCPU\n\n"; lscpu; printf "\nMEMORY\n\n"; free -h; printf "\nDISKS\n\n"; lsblk; printf "\nPCI\n\n"; lspci; printf "\nUSB\n\n"; lsusb; printf "\nNETWORK\n\n"; ifconfig) | less'

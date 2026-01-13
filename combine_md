@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+
+# Combine all markdown files in current directory into a single file
+# with a datetime-stamped filename
+
+# Set output directory
+output_dir="$HOME/Documents/Zets_combined"
+mkdir -p "$output_dir"
+
+# Generate filename with current date-time
+output_file="$output_dir/combined_$(date +%Y%m%d_%H%M%S).md"
+
+# Find all markdown files in current directory
+md_files=(*.md)
+
+# Check if any markdown files exist
+if [ ${#md_files[@]} -eq 0 ] || [ ! -f "${md_files[0]}" ]; then
+    echo "No markdown files found in the current directory."
+    exit 1
+fi
+
+echo "Found ${#md_files[@]} markdown files to combine."
+
+# Combine all markdown files
+for file in "${md_files[@]}"; do
+    cat "$file"
+    echo -e "\n\\newpage\n"
+done > "$output_file"
+
+echo "Successfully created: $output_file"

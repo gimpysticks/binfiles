@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+set -e
+
+# Script to install/update Neovim to the latest stable version
+# Uses pre-built tarball from GitHub releases
+
+echo "Fetching latest Neovim release info..."
+LATEST_VERSION=$(curl -s https://api.github.com/repos/neovim/neovim/releases/latest | grep '"tag_name"' | cut -d '"' -f 4)
+echo "Latest version: $LATEST_VERSION"
+
+DOWNLOAD_URL="https://github.com/neovim/neovim/releases/download/${LATEST_VERSION}/nvim-linux-x86_64.tar.gz"
+TEMP_DIR=$(mktemp -d)
+
+echo "Downloading Neovim ${LATEST_VERSION}..."
+curl -L "$DOWNLOAD_URL" -o "$TEMP_DIR/nvim-linux-x86_64.tar.gz"
+
+echo "Extracting..."
+tar xzf "$TEMP_DIR/nvim-linux-x86_64.tar.gz" -C "$TEMP_DIR"
+
+echo "Installing to /opt/nvim..."
+sudo rm -rf /opt/nvim
+sudo mv "$TEMP_DIR/nvim-linux-x86_64" /opt/nvim
+
+echo "Creating symlink..."
+sudo ln -sf /opt/nvim/bin/nvim /usr/local/bin/nvim
+
+echo "Cleaning up..."
+rm -rf "$TEMP_DIR"
+
+# Remove apt version if it exists
+if dpkg -l | grep -q "^ii.*neovim"; then
+    echo "Removing apt-installed neovim..."
+    sudo apt remove neovim neovim-runtime -y
+fi
+
+echo ""
+echo "✓ Neovim updated successfully!"
+nvim --version

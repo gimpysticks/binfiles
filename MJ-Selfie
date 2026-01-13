@@ -1,0 +1,2 @@
+ #!/bin/bash
+echo ". --sref random --oref https://s.mj.run/jktpzKqX6es"|xclip -selection clipboard -i
