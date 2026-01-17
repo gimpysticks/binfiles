@@ -30,8 +30,8 @@ mkdir -p "$output_dir"
 # Generate filename with current date-time
 output_file="$output_dir/combined_$(date +%Y%m%d_%H%M%S).md"
 
-# Find all markdown files in current directory
-md_files=(*.md)
+# Find all markdown files in current directory, sorted by newest first
+md_files=($(ls -t *.md))
 
 # Check if any markdown files exist
 if [ ${#md_files[@]} -eq 0 ] || [ ! -f "${md_files[0]}" ]; then
