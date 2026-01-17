@@ -3,8 +3,28 @@
 # Combine all markdown files in current directory into a single file
 # with a datetime-stamped filename
 
-# Set output directory
+# Default behavior
+generate_pdf=false
 output_dir="$HOME/Documents/Zets_combined"
+
+# Parse command-line options
+while getopts ":po:" opt; do
+  case ${opt} in
+    p )
+      generate_pdf=true
+      ;;
+    o )
+      output_dir="$OPTARG"
+      ;;
+    \? )
+      echo "Invalid option: -$OPTARG" 1>&2
+      exit 1
+      ;;
+  esac
+done
+shift $((OPTIND -1))
+
+# Set output directory
 mkdir -p "$output_dir"
 
 # Generate filename with current date-time
@@ -21,10 +41,68 @@ fi
 
 echo "Found ${#md_files[@]} markdown files to combine."
 
-# Combine all markdown files
-for file in "${md_files[@]}"; do
-    cat "$file"
-    echo -e "\n\\newpage\n"
-done > "$output_file"
+# Combine all markdown files with filtering
+{
+    for file in "${md_files[@]}"; do
+        # Skip binary/PDF files by checking first few bytes
+        if file "$file" | grep -q "text"; then
+            # Remove lines that look like PDF structure, keep everything else
+            grep -vE '^%PDF|^endobj|^<<|^>>$|^[0-9]* 0 obj$' "$file"
+            
+            # Add proper page break
+            echo
+            echo
+            echo "\\pagebreak"
+            echo
+            echo
+        fi
+    done
+} > "$output_file"
 
 echo "Successfully created: $output_file"
+
+if [ "$generate_pdf" = true ]; then
+    # Dependency checks for PDF generation
+    if ! command -v pandoc &> /dev/null; then
+        echo "Error: pandoc is not installed. Please install it to generate PDFs."
+        exit 1
+    fi
+    if ! command -v pdflatex &> /dev/null; then
+        echo "Error: pdflatex is not installed. Please install a LaTeX distribution (e.g., TeX Live) to generate PDFs."
+        exit 1
+    fi
+
+    pdf_file="${output_file%.md}.pdf"
+    echo "Converting to PDF using pandoc..."
+    pandoc "$output_file" -o "$pdf_file" --pdf-engine=pdflatex 2>/dev/null
+
+    if [ -f "$pdf_file" ]; then
+        echo "Successfully created PDF: $pdf_file"
+    else
+        echo "Pandoc failed, falling back to Chrome..."
+        # Convert to HTML (temporary file)
+        temp_html="/tmp/zets_combined_$(date +%Y%m%d_%H%M%S).html"
+        echo "Converting to HTML..."
+        pandoc "$output_file" -o "$temp_html" --standalone 2>/dev/null
+
+        if [ $? -eq 0 ]; then
+            # Convert HTML to PDF using Chrome
+            if ! command -v google-chrome &> /dev/null; then
+                echo "Error: google-chrome is not installed. Please install it to generate PDFs."
+                exit 1
+            fi
+            echo "Converting to PDF..."
+            google-chrome --headless --disable-gpu --print-to-pdf="$pdf_file" "file://$temp_html" 2>&1 | grep -v "VAAPI\|GPU\|GLib" >/dev/null
+            
+            if [ -f "$pdf_file" ]; then
+                echo "Successfully created PDF: $pdf_file"
+                # Clean up temp HTML
+                rm "$temp_html"
+            else
+                echo "Failed to create PDF"
+            fi
+        else
+            echo "Failed to convert to HTML"
+        fi
+    fi
+fi
