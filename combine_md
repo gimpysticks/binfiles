@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Combine all markdown files in current directory into a single file
-# with a datetime-stamped filename
+# with a datetime-stamped filename and a clickable Table of Contents.
 
 # Default behavior
 generate_pdf=false
@@ -30,8 +30,8 @@ mkdir -p "$output_dir"
 # Generate filename with current date-time
 output_file="$output_dir/combined_$(date +%Y%m%d_%H%M%S).md"
 
-# Find all markdown files in current directory, sorted by newest first
-md_files=($(ls -t *.md))
+# Find all markdown files in current directory, sorted by newest first, excluding combined files
+mapfile -t md_files < <(ls -t *.md | grep -v '^combined_.*\.md$')
 
 # Check if any markdown files exist
 if [ ${#md_files[@]} -eq 0 ] || [ ! -f "${md_files[0]}" ]; then
@@ -51,9 +51,11 @@ echo "Found ${#md_files[@]} markdown files to combine."
             
             # Add proper page break
             echo
-            echo
-            echo "\\pagebreak"
-            echo
+            if [ "$generate_pdf" = true ]; then
+                echo "\\pagebreak"
+            else
+                echo -e "\n---\n"
+            fi
             echo
         fi
     done

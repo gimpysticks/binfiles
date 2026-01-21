@@ -1,0 +1,68 @@
+#!/bin/zsh
+
+# NFS Mount Backup Script
+# Backs up active NFS mount points from /mnt/ to HD710_PRO
+
+set -euo pipefail
+
+# Configuration
+BACKUP_DEST="/media/sticks/HD710_PRO"
+LOG_FILE="${BACKUP_DEST}/backup_$(date +%Y%m%d_%H%M%S).log"
+TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
+
+# Logging function
+log() {
+    echo "[${TIMESTAMP}] $1" | tee -a "${LOG_FILE}"
+}
+
+# Start backup
+log "========================================="
+log "Starting NFS mount backup"
+log "========================================="
+
+# Check if backup destination exists
+if [[ ! -d "${BACKUP_DEST}" ]]; then
+    log "ERROR: Backup destination ${BACKUP_DEST} does not exist!"
+    exit 1
+fi
+
+# Get active NFS mount points from /mnt
+MOUNT_POINTS=$(mount | grep "^192.168.4.2" | grep "/mnt" | awk '{print $3}')
+
+if [[ -z "${MOUNT_POINTS}" ]]; then
+    log "WARNING: No active NFS mount points found in /mnt/"
+    exit 0
+fi
+
+log "Found active mount points:"
+echo "${MOUNT_POINTS}" | while read -r mp; do
+    log "  - ${mp}"
+done
+
+# Backup each mount point
+echo "${MOUNT_POINTS}" | while read -r MOUNT_POINT; do
+    MOUNT_NAME=$(basename "${MOUNT_POINT}")
+    DEST_DIR="${BACKUP_DEST}/${MOUNT_NAME}"
+    
+    log ""
+    log "Backing up ${MOUNT_POINT} to ${DEST_DIR}..."
+    
+    # Create destination directory if it doesn't exist
+    mkdir -p "${DEST_DIR}"
+    
+    # Perform rsync backup with progress
+    if rsync -av --delete --stats \
+        --exclude='.Trash-*' \
+        --exclude='lost+found' \
+        "${MOUNT_POINT}/" "${DEST_DIR}/" >> "${LOG_FILE}" 2>&1; then
+        log "SUCCESS: Backup of ${MOUNT_POINT} completed"
+    else
+        log "ERROR: Backup of ${MOUNT_POINT} failed (exit code: $?)"
+    fi
+done
+
+log ""
+log "========================================="
+log "Backup completed at $(date +"%Y-%m-%d %H:%M:%S")"
+log "========================================="
+log "Log saved to: ${LOG_FILE}"

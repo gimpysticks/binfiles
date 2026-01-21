@@ -222,7 +222,7 @@ kp () {
     sed -i '/oxvd/d' .zsh_history
     sed -i '/xclip/d' .zsh_history
     sed -i \'/yt-dlp/d\' .zsh_history
-    clear
+#    clear
 
 }
 
