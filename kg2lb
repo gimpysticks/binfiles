@@ -1,1 +1,19 @@
-/home/sticks/src/pythonfiles/kg2lb.py
+#!/usr/bin/env python3
+"""Convert kilograms to pounds"""
+import sys
+
+def kg_to_lb(kg):
+    return kg * 2.20462
+
+if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print("Usage: kg2lb <kilograms>")
+        sys.exit(1)
+    
+    try:
+        kg = float(sys.argv[1])
+        lb = kg_to_lb(kg)
+        print(f"{kg} kg = {lb:.2f} lb")
+    except ValueError:
+        print("Error: Please provide a valid number")
+        sys.exit(1)

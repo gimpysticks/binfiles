@@ -1,1 +1,26 @@
-/home/sticks/src/pythonfiles/tipcalc.py
+#!/usr/bin/env python3
+"""Calculate tip and total bill amount"""
+import sys
+
+def calculate_tip(bill, tip_percent):
+    tip = bill * (tip_percent / 100)
+    total = bill + tip
+    return tip, total
+
+if __name__ == "__main__":
+    if len(sys.argv) not in [2, 3]:
+        print("Usage: tipcalc <bill_amount> [tip_percent]")
+        print("Default tip percent is 15%")
+        sys.exit(1)
+    
+    try:
+        bill = float(sys.argv[1])
+        tip_percent = float(sys.argv[2]) if len(sys.argv) == 3 else 15.0
+        
+        tip, total = calculate_tip(bill, tip_percent)
+        print(f"Bill: ${bill:.2f}")
+        print(f"Tip ({tip_percent}%): ${tip:.2f}")
+        print(f"Total: ${total:.2f}")
+    except ValueError:
+        print("Error: Please provide valid numbers")
+        sys.exit(1)

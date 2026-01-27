@@ -7,24 +7,82 @@ set -euo pipefail
 
 # Configuration
 BACKUP_DEST="/media/sticks/HD710_PRO"
-LOG_FILE="${BACKUP_DEST}/backup_$(date +%Y%m%d_%H%M%S).log"
+LOG_FILE_NAME="backup_$(date +%Y%m%d_%H%M%S).log"
+LOG_FILE="/tmp/${LOG_FILE_NAME}"
 TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
+NFS_SERVER="192.168.4.2"
+
+# Additional shares to mount temporarily for backup
+TEMP_MOUNTS=(
+    "${NFS_SERVER}:/data/Documents:/mnt/Documents"
+    "${NFS_SERVER}:/data/papaw_pictures:/mnt/papaw_pictures"
+)
 
 # Logging function
 log() {
-    echo "[${TIMESTAMP}] $1" | tee -a "${LOG_FILE}"
+    echo "[${TIMESTAMP}] $1" >> "${LOG_FILE}"
 }
+
+# Cleanup function to unmount temporary mounts
+cleanup() {
+    log "Cleaning up temporary mounts..."
+    for mount_info in "${TEMP_MOUNTS[@]}"; do
+        mount_point=$(echo "${mount_info}" | cut -d: -f3)
+        if mount | grep -q "${mount_point}"; then
+            log "Unmounting ${mount_point}"
+            sudo umount "${mount_point}" 2>/dev/null || true
+        fi
+    done
+    
+    # Move log file to destination
+    if [[ -f "${LOG_FILE}" ]]; then
+        mv "${LOG_FILE}" "${BACKUP_DEST}/${LOG_FILE_NAME}"
+    fi
+}
+
+# Set trap to cleanup on exit
+trap cleanup EXIT
 
 # Start backup
 log "========================================="
 log "Starting NFS mount backup"
 log "========================================="
 
+# Check if backup destination is mounted
+if ! mount | grep -q "${BACKUP_DEST}"; then
+    log "INFO: Backup destination is not mounted. Attempting to mount..."
+    sudo mount /dev/sdb1 "${BACKUP_DEST}"
+    if [[ $? -ne 0 ]]; then
+        log "ERROR: Failed to mount backup destination!"
+        exit 1
+    fi
+fi
+
 # Check if backup destination exists
 if [[ ! -d "${BACKUP_DEST}" ]]; then
     log "ERROR: Backup destination ${BACKUP_DEST} does not exist!"
     exit 1
 fi
+
+# Mount temporary shares
+log "Mounting temporary shares..."
+for mount_info in "${TEMP_MOUNTS[@]}"; do
+    nfs_share=$(echo "${mount_info}" | cut -d: -f1,2)
+    mount_point=$(echo "${mount_info}" | cut -d: -f3)
+    
+    # Check if already mounted
+    if mount | grep -q "${mount_point}"; then
+        log "${mount_point} already mounted, skipping"
+    else
+        log "Mounting ${nfs_share} to ${mount_point}"
+        sudo mount -t nfs -o vers=3,defaults "${nfs_share}" "${mount_point}"
+        if [[ $? -eq 0 ]]; then
+            log "Successfully mounted ${mount_point}"
+        else
+            log "WARNING: Failed to mount ${mount_point}"
+        fi
+    fi
+done
 
 # Get active NFS mount points from /mnt
 MOUNT_POINTS=$(mount | grep "^192.168.4.2" | grep "/mnt" | awk '{print $3}')
@@ -35,12 +93,18 @@ if [[ -z "${MOUNT_POINTS}" ]]; then
 fi
 
 log "Found active mount points:"
-echo "${MOUNT_POINTS}" | while read -r mp; do
+while IFS= read -r mp; do
     log "  - ${mp}"
-done
+done <<< "${MOUNT_POINTS}"
 
 # Backup each mount point
-echo "${MOUNT_POINTS}" | while read -r MOUNT_POINT; do
+while IFS= read -r MOUNT_POINT; do
+    # Skip /mnt/temp_home
+    if [[ "${MOUNT_POINT}" == "/mnt/temp_home" ]]; then
+        log "Skipping ${MOUNT_POINT} (excluded from backup)"
+        continue
+    fi
+    
     MOUNT_NAME=$(basename "${MOUNT_POINT}")
     DEST_DIR="${BACKUP_DEST}/${MOUNT_NAME}"
     
@@ -59,7 +123,7 @@ echo "${MOUNT_POINTS}" | while read -r MOUNT_POINT; do
     else
         log "ERROR: Backup of ${MOUNT_POINT} failed (exit code: $?)"
     fi
-done
+done <<< "${MOUNT_POINTS}"
 
 log ""
 log "========================================="

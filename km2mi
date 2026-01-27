@@ -1,1 +1,19 @@
-/home/sticks/src/pythonfiles/km2mi.py
+#!/usr/bin/env python3
+"""Convert kilometers to miles"""
+import sys
+
+def km_to_mi(km):
+    return km * 0.621371
+
+if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print("Usage: km2mi <kilometers>")
+        sys.exit(1)
+    
+    try:
+        km = float(sys.argv[1])
+        mi = km_to_mi(km)
+        print(f"{km} km = {mi:.2f} mi")
+    except ValueError:
+        print("Error: Please provide a valid number")
+        sys.exit(1)

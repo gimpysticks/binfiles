@@ -1,1 +1,19 @@
-/home/sticks/src/pythonfiles/ml2oz.py
+#!/usr/bin/env python3
+"""Convert milliliters to fluid ounces"""
+import sys
+
+def ml_to_oz(ml):
+    return ml * 0.033814
+
+if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print("Usage: ml2oz <milliliters>")
+        sys.exit(1)
+    
+    try:
+        ml = float(sys.argv[1])
+        oz = ml_to_oz(ml)
+        print(f"{ml} ml = {oz:.2f} fl oz")
+    except ValueError:
+        print("Error: Please provide a valid number")
+        sys.exit(1)
