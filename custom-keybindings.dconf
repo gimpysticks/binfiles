@@ -60,7 +60,7 @@ name='Grok'
 
 [custom19]
 binding='<Super>F2'
-command='gnome-terminal --command "nvim"'
+command='gnome-terminal -- zsh -l -c "nvim"'
 name='VimWiki'
 
 [custom2]

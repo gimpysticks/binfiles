@@ -1,3 +1,2 @@
 #!/bin/bash
-echo "--no logo, watermark, signature, brand, branding, trademark" | xclip
--selection clipboard
+echo "--no logo, watermark, signature, brand, branding, trademark" | xclip -selection clipboard
