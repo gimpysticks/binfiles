@@ -25,7 +25,7 @@ name='Discord'
 
 [custom12]
 binding='<Shift><Super>s'
-command='/bin/shotcut'
+command='flatpak run org.shotcut.Shotcut'
 name='Shotcut'
 
 [custom13]
@@ -50,7 +50,7 @@ name='Steam'
 
 [custom17]
 binding='<Primary><Super>w'
-command='steam steam://rungameid/236390'
+command='flatpak run com.valvesoftware.Steam steam://rungameid/236390'
 name='War Thunder'
 
 [custom18]
@@ -94,9 +94,9 @@ command='/usr/games/steam'
 name='Steam'
 
 [custom25]
-binding='<Alt><Super>g'
-command='xdg-open https://gemini.google.com'
-name='Gemini'
+binding='<Primary><Alt>Right'
+command='variety -n'
+name='Variety Next'
 
 [custom26]
 binding='<Primary><Super>o'
