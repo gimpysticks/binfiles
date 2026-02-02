@@ -14,7 +14,7 @@ command='xdg-open https://x.com/home'
 name='X.com'
 
 [custom10]
-binding='<Alt><Super>w'
+binding=''
 command='bash -c /home/sticks/bin/workurls'
 name='Work URLS'
 
@@ -99,9 +99,9 @@ command='variety -n'
 name='Variety Next'
 
 [custom26]
-binding='<Primary><Super>o'
-command='flatpak run com.obsproject.Studio'
-name='OBS'
+binding='<Alt><Super>w'
+command='warp-terminal'
+name='Warp'
 
 [custom27]
 binding='<Primary><Alt>s'
