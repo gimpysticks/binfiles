@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Directory to share via Samba
-SHARE_DIRECTORY="/media/sticks/ADATA HD710 PRO/adult"
+SHARE_DIRECTORY="/media/sticks/LUKS-Adult/"
 # Share name that will appear on the network
 SHARE_NAME="adult"
 # Temporary Samba config file
@@ -12,32 +12,32 @@ BACKUP_SAMBA_CONF="/tmp/smb_backup_$(date +%s).conf"
 
 # Function to clean up (restore original samba config and restart service)
 cleanup() {
-    echo -e "\nCtrl+C detected. Cleaning up..."
-    
-    # Restore original Samba configuration
-    if [ -f "$BACKUP_SAMBA_CONF" ]; then
-        echo "Restoring original Samba configuration..."
-        sudo cp "$BACKUP_SAMBA_CONF" "$ORIGINAL_SAMBA_CONF"
-        sudo rm -f "$BACKUP_SAMBA_CONF"
-        echo "Original Samba configuration restored."
-    fi
-    
-    # Remove temporary config file
-    if [ -f "$TEMP_SAMBA_CONF" ]; then
-        rm -f "$TEMP_SAMBA_CONF"
-    fi
-    
-    # Restart Samba service to apply original configuration
-    echo "Restarting Samba service..."
-    sudo systemctl restart smbd
-    if [ $? -eq 0 ]; then
-        echo "Samba service restarted successfully."
-        echo "Share '$SHARE_NAME' has been disabled."
-    else
-        echo "Failed to restart Samba service. You may need to restart it manually."
-    fi
-    
-    exit 0
+  echo -e "\nCtrl+C detected. Cleaning up..."
+
+  # Restore original Samba configuration
+  if [ -f "$BACKUP_SAMBA_CONF" ]; then
+    echo "Restoring original Samba configuration..."
+    sudo cp "$BACKUP_SAMBA_CONF" "$ORIGINAL_SAMBA_CONF"
+    sudo rm -f "$BACKUP_SAMBA_CONF"
+    echo "Original Samba configuration restored."
+  fi
+
+  # Remove temporary config file
+  if [ -f "$TEMP_SAMBA_CONF" ]; then
+    rm -f "$TEMP_SAMBA_CONF"
+  fi
+
+  # Restart Samba service to apply original configuration
+  echo "Restarting Samba service..."
+  sudo systemctl restart smbd
+  if [ $? -eq 0 ]; then
+    echo "Samba service restarted successfully."
+    echo "Share '$SHARE_NAME' has been disabled."
+  else
+    echo "Failed to restart Samba service. You may need to restart it manually."
+  fi
+
+  exit 0
 }
 
 # Trap Ctrl+C (SIGINT)
@@ -45,9 +45,9 @@ trap cleanup SIGINT
 
 # Check if the directory to share exists
 if [ ! -d "$SHARE_DIRECTORY" ]; then
-    echo "Error: Directory '$SHARE_DIRECTORY' does not exist."
-    echo "Please make sure the external drive is connected and mounted."
-    exit 1
+  echo "Error: Directory '$SHARE_DIRECTORY' does not exist."
+  echo "Please make sure the external drive is connected and mounted."
+  exit 1
 fi
 
 echo "Setting up Samba share for: $SHARE_DIRECTORY"
@@ -58,14 +58,14 @@ echo "You may be prompted for your sudo password."
 echo "Backing up original Samba configuration..."
 sudo cp "$ORIGINAL_SAMBA_CONF" "$BACKUP_SAMBA_CONF"
 if [ $? -ne 0 ]; then
-    echo "Failed to backup Samba configuration. Exiting."
-    exit 1
+  echo "Failed to backup Samba configuration. Exiting."
+  exit 1
 fi
 
 # Create temporary Samba configuration with the new share
 echo "Creating temporary Samba configuration..."
-cat "$BACKUP_SAMBA_CONF" > "$TEMP_SAMBA_CONF"
-cat >> "$TEMP_SAMBA_CONF" << EOF
+cat "$BACKUP_SAMBA_CONF" >"$TEMP_SAMBA_CONF"
+cat >>"$TEMP_SAMBA_CONF" <<EOF
 
 [$SHARE_NAME]
     path = $SHARE_DIRECTORY
@@ -82,39 +82,39 @@ EOF
 echo "Applying new Samba configuration..."
 sudo cp "$TEMP_SAMBA_CONF" "$ORIGINAL_SAMBA_CONF"
 if [ $? -ne 0 ]; then
-    echo "Failed to apply new Samba configuration. Restoring backup..."
-    sudo cp "$BACKUP_SAMBA_CONF" "$ORIGINAL_SAMBA_CONF"
-    rm -f "$TEMP_SAMBA_CONF" "$BACKUP_SAMBA_CONF"
-    exit 1
+  echo "Failed to apply new Samba configuration. Restoring backup..."
+  sudo cp "$BACKUP_SAMBA_CONF" "$ORIGINAL_SAMBA_CONF"
+  rm -f "$TEMP_SAMBA_CONF" "$BACKUP_SAMBA_CONF"
+  exit 1
 fi
 
 # Restart Samba service to apply changes
 echo "Restarting Samba service..."
 sudo systemctl restart smbd
 if [ $? -eq 0 ]; then
-    echo "Samba service restarted successfully."
-    
-    # Get the local IP address
-    LOCAL_IP=$(hostname -I | awk '{print $1}')
-    
-    echo "====================================="
-    echo "Samba share '$SHARE_NAME' is now active!"
-    echo "====================================="
-    echo "Share path: $SHARE_DIRECTORY"
-    echo "Network path: //$LOCAL_IP/$SHARE_NAME"
-    echo "Windows: \\\\$LOCAL_IP\\$SHARE_NAME"
-    echo "====================================="
-    echo "The share is accessible to all devices on your network."
-    echo "Press Ctrl+C to stop sharing and restore original configuration."
-    echo "====================================="
-    
-    # Keep the script running until Ctrl+C
-    while true; do
-        sleep 1
-    done
+  echo "Samba service restarted successfully."
+
+  # Get the local IP address
+  LOCAL_IP=$(hostname -I | awk '{print $1}')
+
+  echo "====================================="
+  echo "Samba share '$SHARE_NAME' is now active!"
+  echo "====================================="
+  echo "Share path: $SHARE_DIRECTORY"
+  echo "Network path: //$LOCAL_IP/$SHARE_NAME"
+  echo "Windows: \\\\$LOCAL_IP\\$SHARE_NAME"
+  echo "====================================="
+  echo "The share is accessible to all devices on your network."
+  echo "Press Ctrl+C to stop sharing and restore original configuration."
+  echo "====================================="
+
+  # Keep the script running until Ctrl+C
+  while true; do
+    sleep 1
+  done
 else
-    echo "Failed to restart Samba service. Restoring backup..."
-    sudo cp "$BACKUP_SAMBA_CONF" "$ORIGINAL_SAMBA_CONF"
-    rm -f "$TEMP_SAMBA_CONF" "$BACKUP_SAMBA_CONF"
-    exit 1
+  echo "Failed to restart Samba service. Restoring backup..."
+  sudo cp "$BACKUP_SAMBA_CONF" "$ORIGINAL_SAMBA_CONF"
+  rm -f "$TEMP_SAMBA_CONF" "$BACKUP_SAMBA_CONF"
+  exit 1
 fi
