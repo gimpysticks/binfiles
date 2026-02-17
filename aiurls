@@ -89,7 +89,7 @@ fi
 
 # Run the URL opener function within the tmux session
 # Pass the bookmarks file path to the function in the tmux session
-if ! tmux send-keys -t "$SESSION_NAME" "BOOKMARKS_FILE=\"$BOOKMARKS_FILE\"; $(declare -f run_url_opener); run_url_opener" C-m; then
+if ! tmux send-keys -t "$SESSION_NAME" "BOOKMARKS_FILE=\"$BOOKMARKS_FILE\"; $(declare -f run_url_opener); run_url_opener; tmux kill-session -t \"$SESSION_NAME\"" C-m; then
   echo "Error: Failed to send commands to tmux session"
   exit 1
 fi

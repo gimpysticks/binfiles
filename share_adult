@@ -71,10 +71,9 @@ cat >>"$TEMP_SAMBA_CONF" <<EOF
     path = $SHARE_DIRECTORY
     browseable = yes
     read only = no
-    guest ok = yes
+    valid users = sticks
     create mask = 0755
     directory mask = 0755
-    public = yes
     writable = yes
 EOF
 
