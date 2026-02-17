@@ -1,0 +1,3 @@
+#!/usr/bin/env zsh
+
+yt-dlp -x --audio-format mp3 --extractor-args "youtube:player_client=android,web" $(xclip -selection clipboard -o)
