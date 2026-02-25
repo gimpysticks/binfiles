@@ -46,7 +46,25 @@ alias vs='/usr/bin/variety --selector'
 alias vim='nvim'
 alias uwi='~/bin/update_wiki_index'
 alias open_all_in_vim='nvim./**/*(.)'
-alias gethw='(printf "\nCPU\n\n"; lscpu; printf "\nMEMORY\n\n"; free -h; printf "\nDISKS\n\n"; lsblk; printf "\nPCI\n\n"; lspci; printf "\nUSB\n\n"; lsusb; printf "\nNETWORK\n\n"; ifconfig) | less'
+alias gethw='(printf "
+CPU
+
+"; lscpu; printf "
+MEMORY
+
+"; free -h; printf "
+DISKS
+
+"; lsblk; printf "
+PCI
+
+"; lspci; printf "
+USB
+
+"; lsusb; printf "
+NETWORK
+
+"; ifconfig) | less'
 alias local2utc='date "+%T";TZ=utc date +%T'
 alias myip="curl -s ifconfig.me"
 alias python=python3
@@ -156,6 +174,7 @@ export PATH=${PATH}:/home/sticks/thunderbird
 export PATH=${PATH}:/home/sticks/appimages
 export PATH=${PATH}:/home/sticks/bin
 export PATH=${PATH}:/home/sticks/.config/nerd-dictation
+export LIBVIRT_DEFAULT_URI="qemu:///system"
 export OPENEARDuet="CD:0E:27:D1:AF:66"
 export OraoloM91="F4:4E:FD:D6:55:B3"
 export SYSTEMD_EDITOR=nvim
@@ -232,6 +251,7 @@ done
 cheat(){
     curl cht.sh/"$1" | less
 }
+
 
 fe() {
   local files
@@ -337,3 +357,7 @@ fi
 
 # direnv hook
 eval "$(direnv hook zsh)"
+
+# Linux version of macOS pbcopy and pbpaste
+alias pbcopy='xclip -selection clipboard'
+alias pbpaste='xclip -selection clipboard -o'
