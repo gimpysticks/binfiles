@@ -1,3 +1,4 @@
+
 {
   "widget/y_kLCERtZG2C": {
     "display": {
@@ -201,6 +202,11 @@
         "icon": "_favicon",
         "name": "X.com",
         "url": "https://x.com/home"
+      },
+      {
+        "icon": "_favicon",
+        "name": "YouTube Music",
+        "url": "https://music.youtube.com"
       },
       {
         "icon": "_favicon",
