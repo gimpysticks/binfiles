@@ -1,11 +1,15 @@
 #!/bin/sh
-# Reads selected text using gTTS (Google Text-to-Speech) for a more human-like voice.
+# Reads selected text using OpenAI TTS for a human-like voice.
 
-# Ensure no previous gTTS process is lingering (though mpg123 is usually quick)
-killall mpg123 > /dev/null 2>&1
+# Load environment variables (needed when run from a keybinding)
+. ~/.envrc
 
-# Get the primary selection (highlighted text) and pipe it to the Python script
-xclip -selection primary -o | /home/sticks/bin/readgTTS.py
+killall mpg123 readOpenAITTS.py > /dev/null 2>&1
 
-# Optionally, to use clipboard selection instead:
-# xclip -selection clipboard -o | /home/sticks/bin/readgTTS.py
+# Try primary selection (highlighted text) first, fall back to clipboard
+TEXT=$(xclip -selection primary -o 2>/dev/null)
+if [ -z "$TEXT" ]; then
+    TEXT=$(xclip -selection clipboard -o 2>/dev/null)
+fi
+
+echo "$TEXT" | /home/sticks/bin/readOpenAITTS.py

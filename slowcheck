@@ -1,0 +1,73 @@
+#!/bin/sh
+# slowcheck - snapshot system state when things are slow
+# Usage: slowcheck [logfile]
+# If no logfile is given, output goes to stdout.
+
+SEP="============================================================"
+
+if [ -n "$1" ]; then
+    exec > "$1" 2>&1
+    echo "Logging to $1"
+fi
+
+echo "$SEP"
+echo "SLOWCHECK - $(date '+%Y-%m-%d %H:%M:%S')"
+echo "Hostname: $(hostname)  Uptime: $(uptime -p)"
+echo "$SEP"
+
+echo ""
+echo ">> LOAD AVERAGE & UPTIME"
+uptime
+
+echo ""
+echo ">> MEMORY USAGE"
+free -h
+
+echo ""
+echo ">> SWAP USAGE"
+swapon --show 2>/dev/null || echo "No swap"
+
+echo ""
+echo ">> TOP 15 PROCESSES BY CPU"
+ps aux --sort=-%cpu | head -16
+
+echo ""
+echo ">> TOP 15 PROCESSES BY MEMORY"
+ps aux --sort=-%mem | head -16
+
+echo ""
+echo ">> DISK I/O (iostat)"
+if command -v iostat > /dev/null 2>&1; then
+    iostat -xh 1 1
+else
+    echo "iostat not found (install sysstat)"
+fi
+
+echo ""
+echo ">> DISK USAGE (mounted filesystems)"
+df -hT | grep -v tmpfs
+
+echo ""
+echo ">> NETWORK CONNECTIONS (top listeners & established)"
+ss -tunap 2>/dev/null | head -30
+
+echo ""
+echo ">> FAILED SYSTEMD SERVICES"
+systemctl --failed --no-pager
+
+echo ""
+echo ">> HIGH CPU SYSTEMD SERVICES (cgroup)"
+if command -v systemd-cgtop > /dev/null 2>&1; then
+    systemd-cgtop -b -n 1 --order=cpu | head -20
+else
+    echo "systemd-cgtop not available"
+fi
+
+echo ""
+echo ">> DMESG (last 20 lines - errors/warnings)"
+dmesg --level=err,warn -T 2>/dev/null | tail -20
+
+echo ""
+echo "$SEP"
+echo "SLOWCHECK COMPLETE - $(date '+%Y-%m-%d %H:%M:%S')"
+echo "$SEP"
