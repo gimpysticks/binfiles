@@ -5,7 +5,7 @@ name='WiFi'
 
 [custom0]
 binding='<Alt><Super>i'
-command='xdg-open https://www.instagram.com/gimpysticks'
+command='xdg-open https://www.instagram.com'
 name='Instagram'
 
 [custom1]
@@ -20,7 +20,7 @@ name='Work URLS'
 
 [custom11]
 binding='<Primary><Super>d'
-command='flatpak run com.discordapp.Discord "https://discord.com/channels/411154143567282177/1182420235672887397"'
+command='flatpak run com.discordapp.Discord'
 name='Discord'
 
 [custom12]
@@ -95,7 +95,7 @@ name='Steam'
 
 [custom25]
 binding='<Primary><Alt>Right'
-command='variety -n'
+command='variety --next'
 name='Variety Next'
 
 [custom26]
@@ -104,19 +104,19 @@ command='warp-terminal'
 name='Warp'
 
 [custom27]
-binding='<Primary><Alt>s'
-command='/usr/bin/shotwell'
-name='Shotwell'
+binding=''
+command=''
+name=''
 
 [custom28]
-binding='<Alt><Super>x'
-command='firefox https://twitter.com/home'
-name='Open X'
+binding='<Primary><Alt>Left'
+command='/usr/bin/variety --previous'
+name='Variety Previous'
 
 [custom29]
-binding='<Primary>Escape'
-command='xkill'
-name='Xkill'
+binding='<Primary><Super>b'
+command='gnome-terminal -- bash -c "bpytop"'
+name='Bpytop'
 
 [custom3]
 binding='<Alt><Super>f'
@@ -175,8 +175,8 @@ name='Facebook'
 
 [custom4]
 binding='<Primary><Super>r'
-command='bash /home/sticks/bin/readespeak.sh'
-name='ReadEspeak'
+command='/home/sticks/bin/readhuman.sh'
+name='Read Human'
 
 [custom40]
 binding='<Alt><Super>m'
