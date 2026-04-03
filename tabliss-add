@@ -1,0 +1,8 @@
+#!/bin/bash
+NAME="$1"
+URL="$2"
+FILE="$HOME/bin/bookmarks/tabliss.json"
+
+jq --arg name "$NAME" --arg url "$URL" \
+  '."data/y_kLCERtZG2C".links += [{"icon": "_favicon", "name": $name, "url": $url}] | ."data/y_kLCERtZG2C".links |= sort_by(.name)' \
+  "$FILE" > /tmp/tabliss_tmp.json && mv /tmp/tabliss_tmp.json "$FILE"
