@@ -14,7 +14,7 @@ command='xdg-open https://x.com/home'
 name='X.com'
 
 [custom10]
-binding=''
+binding='<Shift><Alt>w'
 command='bash -c /home/sticks/bin/workurls'
 name='Work URLS'
 
