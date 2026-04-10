@@ -1,0 +1,33 @@
+#!/usr/bin/env zsh
+
+# Backs up the full LazyVim configuration to ~/repos/nvim-config/
+# Includes config, data, state, and cache directories.
+
+set -euo pipefail
+
+DEST="$HOME/repos/nvim-config"
+
+declare -A dirs=(
+    [config]="$HOME/.config/nvim"
+    [data]="$HOME/.local/share/nvim"
+    [state]="$HOME/.local/state/nvim"
+    [cache]="$HOME/.cache/nvim"
+)
+
+for label src in "${(@kv)dirs}"; do
+    if [[ ! -d "$src" ]]; then
+        echo "Skipping $label: $src does not exist."
+        continue
+    fi
+
+    dest="$DEST/$label"
+    mkdir -p "$dest"
+
+    rsync -av --delete \
+        --exclude '.git' \
+        "$src/" "$dest/"
+
+    echo "Backed up $label: $src -> $dest"
+done
+
+echo "Backup complete."
