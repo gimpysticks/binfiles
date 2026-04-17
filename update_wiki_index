@@ -6,11 +6,24 @@ set -euo pipefail
 
 WIKI_DIR="/home/sticks/zets"
 HOME_FILE="$WIKI_DIR/index.md"
-TEMP_FILE=$(mktemp)
-BACKUP_FILE="$HOME_FILE.backup.$(date +%Y%m%d_%H%M%S)"
-
 main() {
-  : # Empty body for now
+  local count=0
+
+  # Write new index.md sorted newest first using fd
+  {
+    printf -- '---\ncreated: %s\n---\n\n\n# Generated Links\n\n' "$(date '+%Y-%m-%d')"
+    while IFS=$'\t' read -r _ts fname; do
+      local link
+      # Percent-encode characters that break markdown links
+      link="${fname// /%20}"
+      link="${link//#/%23}"
+      link="${link//\'/%27}"
+      printf -- '- [%s](%s)\n' "${fname%.md}" "$link"
+      count=$(( count + 1 ))
+    done < <(find "$WIKI_DIR" -maxdepth 1 -name '*.md' -not -name 'index.md' -printf '%T@\t%f\n' | sort -rn)
+  } > "$HOME_FILE"
+
+  echo "index.md updated with $count links (sorted by modification time, newest first)."
 }
 
 # Handle command line options

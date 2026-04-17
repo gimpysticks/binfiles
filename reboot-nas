@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+#
+# Reboot the NAS (192.168.4.2).
+# The NAS will be offline for ~2-3 minutes. All NFS/SMB shares and the
+# web admin UI will be unavailable during that window.
+
+set -u
+
+NAS_HOST="${NAS_HOST:-192.168.4.2}"
+NAS_USER="${NAS_USER:-root}"
+
+# Ask for confirmation unless -y/--yes is passed.
+if [[ "${1:-}" != "-y" && "${1:-}" != "--yes" ]]; then
+    read -r -p "Reboot ${NAS_USER}@${NAS_HOST}? [y/N] " reply
+    case "$reply" in
+        y|Y|yes|YES) ;;
+        *) echo "Aborted."; exit 1 ;;
+    esac
+fi
+
+ssh "${NAS_USER}@${NAS_HOST}" 'systemctl reboot'

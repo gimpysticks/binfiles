@@ -104,9 +104,9 @@ command='warp-terminal'
 name='Warp'
 
 [custom27]
-binding=''
-command=''
-name=''
+binding='<Super>e'
+command='gtk-launch gmail'
+name='Gmail'
 
 [custom28]
 binding='<Primary><Alt>Left'
@@ -124,14 +124,14 @@ command='xdg-open https://www.facebook.com/gimpysticks'
 name='Facebook'
 
 [custom30]
-binding=''
-command='gnome-pomodoro'
-name='gnome-pomodoro'
+binding='<Primary><Super>o'
+command='xdg-open https://www.chatgpt.com'
+name='ChatGPT'
 
 [custom31]
-binding='<Primary><Super>a'
-command='/usr/bin/audacity'
-name='Audacity'
+binding='<Alt><Super>o'
+command='flatpak run com.obsproject.Studio'
+name='OBS-Studio'
 
 [custom32]
 binding='<Primary><Alt>g'
