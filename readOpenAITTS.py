@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 import os
 import sys
 import tempfile
@@ -11,14 +10,14 @@ if __name__ == "__main__":
         print("No text provided.", file=sys.stderr)
         sys.exit(1)
 
-    fd, temp_file = tempfile.mkstemp(suffix=".mp3")
+    fd, temp_file = tempfile.mkstemp(suffix=".mp3", prefix="openai_tts_")
     os.close(fd)
     try:
         print("Generating speech...", file=sys.stderr)
         client = OpenAI()
         response = client.audio.speech.create(
             model="tts-1",
-            voice="nova",
+            voice="echo",
             input=text_to_speak,
         )
         response.write_to_file(temp_file)
@@ -26,6 +25,14 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
-    finally:
-        if os.path.exists(temp_file):
-            os.remove(temp_file)
+
+# Supported voices for model="tts-1":
+# alloy
+# ash
+# coral
+# echo
+# fable
+# onyx
+# nova
+# sage
+# shimmer

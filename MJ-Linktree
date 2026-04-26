@@ -1,2 +1,14 @@
 #!/bin/bash
-echo -e "https://linktr.ee/gimpysticks\nhttps://www.instagram.com/gimpysticks\n https://gimpysticks.redbubble.com\n https://ko-fi.com/gimpysticks\n #midjourney @gimpysticks " | xclip -selection clipboard -i
+# Usage: MJ-Linktree [hashtag ...]
+# Any arguments passed are appended as hashtags to the copied text.
+# A leading '#' on arguments is optional (both "foo" and "#foo" work).
+
+extra=""
+for tag in "$@"; do
+    # Strip any leading '#' so we can normalize to a single '#'.
+    tag="${tag#\#}"
+    [ -z "$tag" ] && continue
+    extra+=" #${tag}"
+done
+
+echo -n "Links in the bio #midjourney @gimpysticks${extra} " | xclip -selection clipboard -i

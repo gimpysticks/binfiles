@@ -1,4 +1,22 @@
 #!/bin/sh
-find /home/sticks/Pictures/Midjourney/ -type f -name "*.png" -mtime +7 -exec rsync -av --remove-source-files {} /media/sticks/PNY/Midjourney/ \;
-find /home/sticks/Pictures/Midjourney/ -type f -name "*.zip" -mtime +7 -exec rsync -av --remove-source-files {} /media/sticks/PNY/Midjourney/Zipfiles/ \;
-find /home/sticks/Videos/ -type f -name "*.mp4" ! -name "VID*" -mtime +7 -exec rsync -av --remove-source-files {} /media/sticks/PNY/Videos/ \;
+
+MJ_SRC="/home/sticks/Pictures/Midjourney"
+VID_SRC="/home/sticks/Videos"
+MJ_DST="/media/sticks/PNY/Midjourney"
+ZIP_DST="/media/sticks/PNY/Midjourney/Zipfiles"
+VID_DST="/media/sticks/PNY/Videos"
+
+# PNGs from Midjourney (>7 days old), preserving subfolder structure
+find "$MJ_SRC" -type f -name "*.png" -mtime +7 \
+  | sed "s|^$MJ_SRC/||" \
+  | rsync -av --remove-source-files --files-from=- "$MJ_SRC/" "$MJ_DST/"
+
+# ZIPs from Midjourney (>7 days old), preserving subfolder structure
+find "$MJ_SRC" -type f -name "*.zip" -mtime +7 \
+  | sed "s|^$MJ_SRC/||" \
+  | rsync -av --remove-source-files --files-from=- "$MJ_SRC/" "$ZIP_DST/"
+
+# MP4s from Videos, excluding VID* (>7 days old), preserving subfolder structure
+find "$VID_SRC" -type f -name "*.mp4" ! -name "VID*" -mtime +7 \
+  | sed "s|^$VID_SRC/||" \
+  | rsync -av --remove-source-files --files-from=- "$VID_SRC/" "$VID_DST/"

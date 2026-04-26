@@ -104,6 +104,11 @@
       },
       {
         "icon": "_favicon",
+        "name": "ElevenLabs",
+        "url": "https://elevenlabs.io"
+      },
+      {
+        "icon": "_favicon",
         "name": "FB-Messenger",
         "url": "https://facebook.com/messages"
       },
@@ -166,11 +171,6 @@
         "icon": "_favicon",
         "name": "Midjourney",
         "url": "https://midjourney.com"
-      },
-      {
-        "icon": "_favicon",
-        "name": "Mubert",
-        "url": "https://www.mubert.com"
       },
       {
         "icon": "_favicon",

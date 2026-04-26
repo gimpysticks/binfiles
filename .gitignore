@@ -1,3 +1,9 @@
 .authorizations
 .envrc
 /home/sticks/bin/mkaccts.sh
+
+# Python cache
+__pycache__/
+# stray scratch files
+tempfile
+/os
