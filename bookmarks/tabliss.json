@@ -169,6 +169,11 @@
       },
       {
         "icon": "_favicon",
+        "name": "Meta AI",
+        "url": "https://www.meta.ai"
+      },
+      {
+        "icon": "_favicon",
         "name": "Midjourney",
         "url": "https://midjourney.com"
       },

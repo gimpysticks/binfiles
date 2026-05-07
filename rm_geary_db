@@ -1,0 +1,2 @@
+#!/bin/bash
+rm ~/.var/app/org.gnome.Geary/data/geary/*/geary.db
