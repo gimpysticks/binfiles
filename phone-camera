@@ -1,0 +1,86 @@
+#!/usr/bin/env zsh
+#
+# phone-camera — mount/unmount the phone's camera folder via GVFS MTP
+#
+# Usage:
+#   phone-camera          # mount (create symlink)
+#   phone-camera unmount  # unmount (remove symlink)
+#
+# Prerequisites:
+#   - jmtpfs package (sudo apt-get install -y jmtpfs)
+#   - Phone connected via USB in File Transfer (MTP) mode
+
+MOUNT_POINT="/mnt/phone-camera"
+GVFS_BASE="/run/user/$(id -u)/gvfs"
+CAMERA_SUBPATH="Internal shared storage/DCIM/Camera"
+
+unmount() {
+    if [[ -L "$MOUNT_POINT" ]]; then
+        sudo rm "$MOUNT_POINT"
+        echo "Removed symlink $MOUNT_POINT"
+    elif [[ -d "$MOUNT_POINT" ]]; then
+        fusermount -u "$MOUNT_POINT" 2>/dev/null
+        sudo rmdir "$MOUNT_POINT"
+        echo "Unmounted and removed $MOUNT_POINT"
+    else
+        echo "Nothing to unmount at $MOUNT_POINT"
+    fi
+}
+
+mount_camera() {
+    # Check if already mounted
+    if [[ -L "$MOUNT_POINT" && -d "$MOUNT_POINT" ]]; then
+        echo "Already mounted at $MOUNT_POINT"
+        ls "$MOUNT_POINT" | head -5
+        return 0
+    fi
+
+    # Clean up stale symlink if phone was unplugged
+    if [[ -L "$MOUNT_POINT" ]]; then
+        echo "Stale symlink found, cleaning up..."
+        sudo rm "$MOUNT_POINT"
+    fi
+
+    # Ensure jmtpfs is installed
+    if ! command -v jmtpfs &>/dev/null; then
+        echo "Installing jmtpfs..."
+        sudo apt-get install -y jmtpfs || { echo "Failed to install jmtpfs"; return 1; }
+    fi
+
+    # Find the GVFS MTP mount for the phone
+    local mtp_mount
+    mtp_mount=$(ls -d "$GVFS_BASE"/mtp:host=* 2>/dev/null | head -1)
+
+    if [[ -z "$mtp_mount" ]]; then
+        echo "No MTP device found via GVFS."
+        echo "Make sure your phone is:"
+        echo "  1. Connected via USB"
+        echo "  2. Unlocked"
+        echo "  3. Set to File Transfer (MTP) mode"
+        return 1
+    fi
+
+    local camera_path="$mtp_mount/$CAMERA_SUBPATH"
+
+    if [[ ! -d "$camera_path" ]]; then
+        echo "Camera folder not found at: $camera_path"
+        echo "Available folders in DCIM:"
+        ls "$mtp_mount/Internal shared storage/DCIM/" 2>/dev/null
+        return 1
+    fi
+
+    # Create the symlink
+    sudo ln -s "$camera_path" "$MOUNT_POINT" || { echo "Failed to create symlink"; return 1; }
+
+    echo "Mounted phone camera at $MOUNT_POINT"
+    echo "Device: $(basename "$mtp_mount")"
+    echo ""
+    echo "Sample files:"
+    ls "$MOUNT_POINT" | head -5
+}
+
+case "${1:-mount}" in
+    mount)   mount_camera ;;
+    unmount) unmount ;;
+    *)       echo "Usage: phone-camera [mount|unmount]"; return 1 ;;
+esac

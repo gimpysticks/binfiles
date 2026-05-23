@@ -7,10 +7,6 @@ case $currbrows in
 		/usr/bin/notify-send -t 3000 "Google Chrome is now the default browser"
 		echo "Google Chrome set as default browser" ;;
 	com.google.Chrome.desktop)
-		xdg-settings set default-web-browser brave-browser.desktop
-		/usr/bin/notify-send -t 3000 "Brave Browser is now the default browser"
-		echo "Brave Browser set as default browser" ;;
-	brave-browser.desktop)
 		xdg-settings set default-web-browser firefox.desktop
 		/usr/bin/notify-send -t 3000 "Firefox is now the default browser"
 		echo "Firefox set as default browser" ;;

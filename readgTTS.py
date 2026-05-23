@@ -1,21 +1,25 @@
 #!/usr/bin/env python3
 
 import os
+import subprocess
 import sys
+import uuid
 from gtts import gTTS
+
+def notify(title, message, urgency="normal"):
+    subprocess.Popen(["notify-send", "-u", urgency, title, message])
 
 if __name__ == "__main__":
     text_to_speak = sys.stdin.read().strip()
     if text_to_speak:
         try:
             tts = gTTS(text=text_to_speak, lang='en', slow=False)
-            # Save to a temporary file
-            temp_file = os.path.join('/tmp', 'gtts_output.mp3')
+            # Save to a uniquely named file in /tmp
+            temp_file = os.path.join('/tmp', f'gtts_{uuid.uuid4().hex}.mp3')
             tts.save(temp_file)
             # Play the audio using mpg123
             os.system(f'mpg123 {temp_file}')
-            os.remove(temp_file) # Clean up the temporary file
         except Exception as e:
-            print(f"Error: {e}", file=sys.stderr)
+            notify("Read (gTTS)", f"Error: {e}", "critical")
     else:
-        print("No text provided for gTTS.", file=sys.stderr)
+        notify("Read (gTTS)", "No text provided.")

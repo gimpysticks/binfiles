@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 
 import os
+import subprocess
 import sys
 import pyttsx3
+
+def notify(title, message, urgency="normal"):
+    subprocess.Popen(["notify-send", "-u", urgency, title, message])
 
 if __name__ == "__main__":
     text_to_speak = sys.stdin.read().strip()
@@ -28,6 +32,6 @@ if __name__ == "__main__":
             os.system(f'mpg123 {temp_file}')
             os.remove(temp_file) # Clean up the temporary file
         except Exception as e:
-            print(f"Error: {e}", file=sys.stderr)
+            notify("Read (pyttsx3)", f"Error: {e}", "critical")
     else:
-        print("No text provided for pyttsx3.", file=sys.stderr)
+        notify("Read (pyttsx3)", "No text provided.")

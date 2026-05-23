@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import subprocess
 import sys
 import tempfile
 from elevenlabs import ElevenLabs
@@ -8,16 +9,18 @@ from elevenlabs import ElevenLabs
 VOICE_ID = "1TE7ou3jyxHsyRehUuMB"
 MODEL_ID = "eleven_multilingual_v2"
 
+def notify(title, message, urgency="normal"):
+    subprocess.Popen(["notify-send", "-u", urgency, title, message])
+
 if __name__ == "__main__":
     text_to_speak = sys.stdin.read().strip()
     if not text_to_speak:
-        print("No text provided.", file=sys.stderr)
+        notify("Read Human (ElevenLabs)", "No text provided.")
         sys.exit(1)
 
     fd, temp_file = tempfile.mkstemp(suffix=".mp3", prefix="elevenlabs_tts_")
     os.close(fd)
     try:
-        print("Generating speech...", file=sys.stderr)
         # ElevenLabs() reads ELEVENLABS_API_KEY from the environment.
         client = ElevenLabs()
         audio = client.text_to_speech.convert(
@@ -30,7 +33,7 @@ if __name__ == "__main__":
                 f.write(chunk)
         os.system(f"mpg123 -q {temp_file}")
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+        notify("Read Human (ElevenLabs)", f"Error: {e}", "critical")
         sys.exit(1)
 
 # Popular pre-made voice IDs:

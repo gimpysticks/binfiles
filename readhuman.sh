@@ -12,4 +12,10 @@ if [ -z "$TEXT" ]; then
     TEXT=$(xclip -selection clipboard -o 2>/dev/null)
 fi
 
+if [ -z "$TEXT" ]; then
+    notify-send -u normal "Read Human (OpenAI)" "No text selected or copied."
+    exit 1
+fi
+
+notify-send -u low "Read Human (OpenAI)" "Generating speech..."
 echo "$TEXT" | /home/sticks/bin/readOpenAITTS.py
