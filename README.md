@@ -44,7 +44,22 @@ absolutely horrible BRE syntax. Using any of the PCRE variations are
 not POSIX, might as well just use `perl` instead in those cases.
 
 Script|Full|Purpose
-|:-:|:-:|-
-`pie`|`perl -p -i -e`|Inplace edit
-`pae`|`perl -paE`|Replace `sed` and `awk` (prints line)
-`map`|`perl -aE`|Replace `sed` and `awk` (no printing)
+||:-:|:-:|-
+|`pie`|`perl -p -i -e`|Inplace edit
+|`pae`|`perl -paE`|Replace `sed` and `awk` (prints line)
+|`map`|`perl -aE`|Replace `sed` and `awk` (no printing)
+
+## MJ-Bkup
+
+Backup script for Midjourney assets and video projects to the PNY USB
+drive (`/media/sticks/PNY`). Moves files older than 7 days, preserving
+subfolder structure.
+
+- **PNGs**: `~/Pictures/Midjourney` → `PNY/Midjourney/`
+- **ZIPs**: `~/Pictures/Midjourney` → `PNY/Midjourney/Zipfiles/`
+- **Videos**: `~/Videos` → `PNY/Videos/` (directory-based move)
+
+Videos use a **directory-based move**: when an `.mp4` is older than 7
+days, the entire containing directory is moved — including companion
+files (`.mlt` project files, `.mp3` audio tracks, etc.). Empty
+directories are cleaned up afterward. Files matching `VID*` are excluded.
