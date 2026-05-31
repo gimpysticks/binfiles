@@ -6,6 +6,6 @@ duration='&sort=relevance&datef=week&durf=10min_more'
 nordvpn c
 # sleep 2
 # tmux kill-server
-tmux new-session -s openxvids -d firefox --private-window https://www.xvideos.com/?k=$params$duration
+tmux new-session -s openxvids -d brave-browser --incognito https://www.xvideos.com/?k=$params$duration
 mkdir -p /tmp/xvids
 tmux new-session -s Adult -c /tmp/xvids

@@ -6,7 +6,7 @@ import tempfile
 from elevenlabs import ElevenLabs
 
 # Default voice/model; tweak as desired.
-VOICE_ID = "1TE7ou3jyxHsyRehUuMB"
+VOICE_ID = "WjFBu0iZUdHEAU667n2a" 
 MODEL_ID = "eleven_multilingual_v2"
 
 def notify(title, message, urgency="normal"):

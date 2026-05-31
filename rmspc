@@ -1,0 +1,28 @@
+#!/bin/bash
+
+# Function to clean the text using 'tr'
+clean_text() {
+    tr -c '[:alnum:]\n' '_' | tr -s '_'
+}
+
+# Check if data is being piped into stdin (standard input)
+if [ ! -t 0 ]; then
+    # Read from stdin and output directly to stdout
+    cat | clean_text
+else
+    # No stdin detected, fallback to the clipboard
+    if command -v pbpaste &> /dev/null; then
+        # macOS
+        cleaned=$(pbpaste | clean_text)
+        echo -n "$cleaned" | pbcopy
+        echo "Cleaned clipboard content: $cleaned"
+    elif command -v xclip &> /dev/null; then
+        # Linux
+        cleaned=$(xclip -selection clipboard -o | clean_text)
+        echo -n "$cleaned" | xclip -selection clipboard -i
+        echo "Cleaned clipboard content: $cleaned"
+    else
+        echo "Error: No standard input detected, and no clipboard tool (pbcopy/xclip) found."
+        exit 1
+    fi
+fi

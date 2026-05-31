@@ -16,13 +16,8 @@ find "$MJ_SRC" -type f -name "*.zip" -mtime +7 \
   | sed "s|^$MJ_SRC/||" \
   | rsync -av --remove-source-files --files-from=- "$MJ_SRC/" "$ZIP_DST/"
 
-# Move entire project directories containing old MP4s (>7 days old)
-find "$VID_SRC" -type f -name "*.mp4" ! -name "VID*" -mtime +7 -printf '%h\n' \
-  | sort -u \
-  | sed "s|^$VID_SRC/||" \
-  | while IFS= read -r reldir; do
-      rsync -av --remove-source-files "$VID_SRC/$reldir/" "$VID_DST/$reldir/"
-    done
-
-# Clean up empty directories left behind
-find "$VID_SRC" -mindepth 1 -type d -empty -delete
+# Move directories older than 7 days from Videos, then remove from source
+find "$VID_SRC" -mindepth 1 -maxdepth 1 -type d -mtime +7 | while IFS= read -r dir; do
+    rsync -av "$dir/" "$VID_DST/$(basename "$dir")/"
+    rm -rf "$dir"
+done
