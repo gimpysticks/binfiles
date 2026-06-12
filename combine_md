@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 
 # Combine all markdown files in current directory into a single file
-# with a datetime-stamped filename and a clickable Table of Contents.
+# with a datetime-stamped filename. Each source file becomes its own
+# section, introduced by a highlighted wiki-style header so it's easy
+# to see which note you're reading.
 
 # Default behavior
 generate_pdf=false
@@ -43,19 +45,31 @@ echo "Found ${#md_files[@]} markdown files to combine."
 
 # Combine all markdown files with filtering
 {
+    first=true
     for file in "${md_files[@]}"; do
         # Skip binary/PDF files by checking first few bytes
         if file "$file" | grep -q "text"; then
-            # Remove lines that look like PDF structure, keep everything else
-            grep -vE '^%PDF|^endobj|^<<|^>>$|^[0-9]* 0 obj$' "$file"
-            
-            # Add proper page break
-            echo
-            if [ "$generate_pdf" = true ]; then
+            # Strip the .md extension for the wiki-style link
+            section_name="${file%.md}"
+
+            # Separate sections: page break for PDF, horizontal rule
+            # otherwise. Skipped before the very first section.
+            if [ "$first" = true ]; then
+                first=false
+            elif [ "$generate_pdf" = true ]; then
+                echo
                 echo "\\pagebreak"
+                echo
             else
                 echo -e "\n---\n"
             fi
+
+            # Highlighted wiki-style header acts as a visual file marker
+            echo "# ==📄 [[$section_name]]=="
+            echo
+
+            # Remove lines that look like PDF structure, keep everything else
+            grep -vE '^%PDF|^endobj|^<<|^>>$|^[0-9]* 0 obj$' "$file"
             echo
         fi
     done
