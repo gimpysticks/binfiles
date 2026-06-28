@@ -1,0 +1,98 @@
+#!/usr/bin/env zsh
+# discord_export — Export a Discord channel or guild via DiscordChatExporter CLI
+# Usage: discord_export [options] <channel|guild ID>
+# Token is read from $DISCORD_TOKEN env var (recommended) or prompted at runtime.
+
+set -euo pipefail
+
+# ── defaults ────────────────────────────────────────────────────────────────
+SCRIPT_NAME="$(basename "$0")"
+DCE="${HOME}/.local/bin/dce"
+OUTPUT_DIR="${HOME}/discord-exports"
+FORMAT="HtmlDark"
+MODE="channel"   # channel | guild
+AFTER=""
+BEFORE=""
+PARTITION=""
+
+# ── helpers ─────────────────────────────────────────────────────────────────
+usage() {
+  cat <<EOF
+Usage: ${SCRIPT_NAME} [options] <ID>
+
+  -g            Export an entire guild instead of a single channel
+  -f <format>   Output format: HtmlDark (default), HtmlLight, Json, Csv, PlainText
+  -o <dir>      Output directory (default: ~/discord-exports)
+  -a <date>     Export messages after this date  (YYYY-MM-DD)
+  -b <date>     Export messages before this date (YYYY-MM-DD)
+  -p <size>     Partition export into files of <size> messages
+  -h            Show this help
+
+Environment:
+  DISCORD_TOKEN  Your Discord user/bot token (avoids interactive prompt)
+
+Examples:
+  discord_export 123456789012345678
+  discord_export -f Json -o ./output 123456789012345678
+  discord_export -g 600262311302922261
+  discord_export -a 2025-01-01 -b 2025-06-01 123456789012345678
+EOF
+}
+
+die() { printf '%s: %s\n' "${SCRIPT_NAME}" "$*" >&2; exit 1; }
+
+# ── parse args ───────────────────────────────────────────────────────────────
+while getopts ":gf:o:a:b:p:h" opt; do
+  case $opt in
+    g) MODE="guild" ;;
+    f) FORMAT="$OPTARG" ;;
+    o) OUTPUT_DIR="$OPTARG" ;;
+    a) AFTER="$OPTARG" ;;
+    b) BEFORE="$OPTARG" ;;
+    p) PARTITION="$OPTARG" ;;
+    h) usage; exit 0 ;;
+    :) die "Option -$OPTARG requires an argument." ;;
+    \?) die "Unknown option: -$OPTARG" ;;
+  esac
+done
+shift $(( OPTIND - 1 ))
+
+[[ $# -lt 1 ]] && { usage; exit 1; }
+TARGET_ID="$1"
+
+# ── validate format ──────────────────────────────────────────────────────────
+case "$FORMAT" in
+  HtmlDark|HtmlLight|Json|Csv|PlainText) ;;
+  *) die "Invalid format '$FORMAT'. Choose: HtmlDark, HtmlLight, Json, Csv, PlainText" ;;
+esac
+
+# ── resolve token (never echo it) ────────────────────────────────────────────
+if [[ -z "${DISCORD_TOKEN:-}" ]]; then
+  printf 'Discord token (input hidden): '
+  read -rs DISCORD_TOKEN
+  printf '\n'
+fi
+[[ -z "$DISCORD_TOKEN" ]] && die "No token provided."
+
+# ── build command ─────────────────────────────────────────────────────────────
+mkdir -p "$OUTPUT_DIR"
+
+cmd=("$DCE")
+if [[ "$MODE" == "guild" ]]; then
+  cmd+=(exportguild -g "$TARGET_ID")
+else
+  cmd+=(export -c "$TARGET_ID")
+fi
+
+cmd+=(-t "$DISCORD_TOKEN" -f "$FORMAT" -o "$OUTPUT_DIR")
+[[ -n "$AFTER"     ]] && cmd+=(--after     "$AFTER")
+[[ -n "$BEFORE"    ]] && cmd+=(--before    "$BEFORE")
+[[ -n "$PARTITION" ]] && cmd+=(--partition "$PARTITION")
+
+# ── run ───────────────────────────────────────────────────────────────────────
+printf '[discord_export] Mode: %s | ID: %s | Format: %s | Output: %s\n' \
+  "$MODE" "$TARGET_ID" "$FORMAT" "$OUTPUT_DIR"
+
+"${cmd[@]}"
+
+printf '[discord_export] Done. Files saved to: %s\n' "$OUTPUT_DIR"

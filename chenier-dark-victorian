@@ -1,0 +1,3 @@
+ #!/bin/bash
+ profile="--p 5exw826 cz2fnyy 9rfajjh"
+echo "$profile --stylize 50"|xclip -selection clipboard -i

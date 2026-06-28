@@ -16,7 +16,7 @@ show_usage() {
 }
 
 # Check for required commands
-for cmd in tmux xdg-open; do
+for cmd in tmux xdg-open xdotool; do
   if ! command -v "$cmd" &>/dev/null; then
     echo "Error: Required command '$cmd' not found. Please install it and try again."
     exit 1
@@ -79,6 +79,7 @@ run_url_opener() {
       sleep 1 # gives browser time to open each one
     fi
   done
+  xdotool key ctrl+1
 }
 
 # Create a new tmux session
