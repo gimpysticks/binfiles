@@ -1,0 +1,40 @@
+#!/bin/sh
+
+# Define paths
+TARGET_DIR="$HOME/Documents/Prompt_library"
+OUTPUT_FILE="$TARGET_DIR/index.md"
+
+# Check if the Prompt_library directory actually exists
+if [ ! -d "$TARGET_DIR" ]; then
+    echo "Error: Directory $TARGET_DIR does not exist."
+    exit 1
+fi
+
+# Start writing the index file (this overwrites index.md if it already exists)
+cat << EOF > "$OUTPUT_FILE"
+# Prompt Library Index
+
+This index was automatically generated on $(date +%Y-%m-%d).
+
+## Available Prompts
+
+EOF
+
+# Loop through all markdown files except index.md itself
+for file in "$TARGET_DIR"/*.md; do
+    # Ensure the file exists and isn't the index file we are creating
+    if [ -f "$file" ] && [ "$(basename "$file")" != "index.md" ]; then
+        filename=$(basename "$file")
+        
+        # Strip the .md extension for a cleaner display title
+        display_name="${filename%.md}"
+        
+        # Replace underscores or dashes with spaces for better readability
+        display_name=$(echo "$display_name" | tr '_-' ' ')
+
+        # Append the markdown link to index.md
+        echo "* [$display_name]($filename)" >> "$OUTPUT_FILE"
+    fi
+done
+
+echo "Success! Created index at $OUTPUT_FILE"
