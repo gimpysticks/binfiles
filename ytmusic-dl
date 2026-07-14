@@ -1,0 +1,13 @@
+#!/usr/bin/env zsh
+
+if [[ -z "$1" ]]; then
+  print "Usage: ytmusic-dl <playlist-url>" >&2
+  exit 1
+fi
+
+yt-dlp \
+  --cookies-from-browser firefox \
+  --remote-components ejs:github \
+  --extractor-args "youtube:player_client=tv" \
+  -x --audio-format mp3 \
+  "$1"
