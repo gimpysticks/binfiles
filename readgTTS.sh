@@ -7,9 +7,9 @@ if [ -z "$TEXT" ]; then
 fi
 
 if [ -z "$TEXT" ]; then
-    notify-send -u normal "Read (gTTS)" "No text selected or copied."
+    # notify-send -u normal "Read (gTTS)" "No text selected or copied."
     exit 1
 fi
 
-notify-send -u low "Read (gTTS)" "Generating speech..."
-gtts-cli "$TEXT" | mpv - || notify-send -u critical "Read (gTTS)" "gTTS playback failed."
+# notify-send -u low "Read (gTTS)" "Generating speech..."
+gtts-cli "$TEXT" | mpv - # || notify-send -u critical "Read (gTTS)" "gTTS playback failed."
