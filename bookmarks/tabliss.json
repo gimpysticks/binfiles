@@ -119,6 +119,11 @@
       },
       {
         "icon": "_favicon",
+        "name": "Facebook Business",
+        "url": "https://business.facebook.com/latest/home?business_id=1268137841159441&asset_id=570166102835651"
+      },
+      {
+        "icon": "_favicon",
         "name": "Gemini",
         "url": "https://gemini.google.com"
       },
