@@ -45,8 +45,30 @@ curl -s -X POST -H "Content-Type: application/json" -d "$PAYLOAD" "$WEBHOOK_URL"
 #-------Run Script--------------------------------------------------------------
 # exFAT compatible flags (-rltDv instead of -aAXHv)
 rsync -rltDv --info=progress2 --delete \
---exclude={'.cache/*','.local/share/Trash/*','.mozilla/firefox/*/Cache*/*','.mozilla/firefox/*/cache*/*','.thumbnails/*','.npm/*','node_modules/*','.yarn/*','*.tmp','*.temp','.steam/steam.token','steam.token','.local/share/Steam/*','target/debug/*','target/release/*','.cargo/registry/*','.cargo/git/*','.rustup/toolchains/*/lib/*','.wine/*','snap/*','.snapd/*','flatpak/*','.var/app/*'} \
---exclude="$DEST" \
+  --exclude='.cache/*' \
+  --exclude='.local/share/Trash/*' \
+  --exclude='.mozilla/firefox/*/Cache*/*' \
+  --exclude='.mozilla/firefox/*/cache*/*' \
+  --exclude='.thumbnails/*' \
+  --exclude='.npm/*' \
+  --exclude='node_modules/*' \
+  --exclude='.yarn/*' \
+  --exclude='*.tmp' \
+  --exclude='*.temp' \
+  --exclude='.steam/steam.token' \
+  --exclude='steam.token' \
+  --exclude='.local/share/Steam/*' \
+  --exclude='target/debug/*' \
+  --exclude='target/release/*' \
+  --exclude='.cargo/registry/*' \
+  --exclude='.cargo/git/*' \
+  --exclude='.rustup/toolchains/*/lib/*' \
+  --exclude='.wine/*' \
+  --exclude='snap/*' \
+  --exclude='.snapd/*' \
+  --exclude='flatpak/*' \
+  --exclude='.var/app/*' \
+  --exclude="$DEST" \
 "/home/$1/" "$DEST" >> "$LOG_DIR/$(hostname)-$1-$(date +%Y%m%d%H%M).log" 2>&1
 
 #-------End Notify--------------------------------------------------------------
