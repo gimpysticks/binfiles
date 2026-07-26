@@ -10,7 +10,8 @@ fi
 
 sleep 5
 
-WEBHOOK_URL="***REMOVED***"
+[ -z "$BACKUP_HOOKWEB" ] && . "$HOME/.envrc"
+WEBHOOK_URL="$BACKUP_HOOKWEB"
 LOG_DIR="$2/logs"
 
 # Ensure target backup directory and log folder exist

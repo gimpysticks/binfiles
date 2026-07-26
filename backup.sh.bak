@@ -8,7 +8,8 @@ if [ $# -eq 0 ]
 fi
 # echo -e $USERPASS|sudo -S mount -rtDvz
 sleep 5
-WEBHOOK_URL="***REMOVED***"
+[ -z "$BACKUP_HOOKWEB" ] && . "$HOME/.envrc"
+WEBHOOK_URL="$BACKUP_HOOKWEB"
 tmpfile="/home/$1/backup.tmp"
 #-------Start Notify--------------------------------------------------------------
 beginmsg="$1 on $(hostname) Backup script Started  $(date +%c)"

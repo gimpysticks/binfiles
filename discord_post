@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# Replace 'YOUR_WEBHOOK_URL' with the URL of your Discord webhook
-WEBHOOK_URL="***REMOVED***"
+# Load webhook URL from ~/.envrc if not already set by direnv
+[ -z "$BACKUP_HOOKWEB" ] && . "$HOME/.envrc"
+WEBHOOK_URL="$BACKUP_HOOKWEB"
 
 #echo $WEBHOOK_URL
 
