@@ -39,7 +39,7 @@ mkdir -p "$LOG_DIR"
 
 #-------Start Notify--------------------------------------------------------------
 beginmsg="$1 on $(hostname) Backup script Started $(date +%c)"
-MESSAGE="$(echo -e $beginmsg)"
+MESSAGE="$beginmsg"
 PAYLOAD='{"content": "'"$MESSAGE"'"}'
 curl -s -X POST -H "Content-Type: application/json" -d "$PAYLOAD" "$WEBHOOK_URL"
 
@@ -74,6 +74,6 @@ rsync -rltDv --info=progress2 --delete \
 
 #-------End Notify--------------------------------------------------------------
 endmsg="$1 on $(hostname) Backup script completed $(date +%c)"
-MESSAGE="$(echo -e $endmsg)"
+MESSAGE="$endmsg"
 PAYLOAD='{"content": "'"$MESSAGE"'"}'
 curl -s -X POST -H "Content-Type: application/json" -d "$PAYLOAD" "$WEBHOOK_URL"
