@@ -23,7 +23,8 @@ fi
 
 DEST="/mnt/backup"   # To pass destination at runtime, replace with: DEST="$2"
 LOG_DIR="$DEST/logs"
-WEBHOOK_URL="***REMOVED***"
+[ -z "$BACKUP_HOOKWEB" ] && . "/home/sticks/.envrc"
+WEBHOOK_URL="$BACKUP_HOOKWEB"
 
 # Verify mount point is available
 if ! mountpoint -q "$DEST"; then
