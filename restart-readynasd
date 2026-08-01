@@ -6,7 +6,7 @@
 
 set -u
 
-NAS_HOST="${NAS_HOST:-192.168.4.2}"
+NAS_HOST="${NAS_HOST:-192.168.4.27}"
 NAS_USER="${NAS_USER:-root}"
 
 ssh "${NAS_USER}@${NAS_HOST}" 'systemctl restart readynasd'

@@ -2,9 +2,36 @@
 
 MJ_SRC="/home/sticks/Pictures/Midjourney"
 VID_SRC="/home/sticks/Videos"
-MJ_DST="/media/sticks/PNY/Midjourney"
-ZIP_DST="/media/sticks/PNY/Midjourney/Zipfiles"
-VID_DST="/media/sticks/PNY/Videos"
+MJ_DST="/media/sticks/MidJourney1/Midjourney"
+ZIP_DST="/media/sticks/MidJourney1/Midjourney/Zipfiles"
+VID_DST="/media/sticks/MidJourney1/Videos"
+
+VARIETY_PROFILE="/home/sticks/.config/variety/"
+VARIETY_WAS_RUNNING=0
+
+# Relaunch Variety (only if it was running and we have a display)
+restart_variety() {
+    [ "$VARIETY_WAS_RUNNING" -eq 1 ] || return 0
+    if [ -n "$DISPLAY" ] || [ -n "$WAYLAND_DISPLAY" ]; then
+        /usr/bin/variety --profile "$VARIETY_PROFILE" >/dev/null 2>&1 &
+    fi
+}
+
+# Stop Variety first: rsync --remove-source-files below can delete the image
+# Variety has marked as the current wallpaper, corrupting its saved state.
+if pgrep -f "/usr/bin/variety" >/dev/null 2>&1; then
+    VARIETY_WAS_RUNNING=1
+    /usr/bin/variety --profile "$VARIETY_PROFILE" --quit >/dev/null 2>&1 || true
+    i=0
+    while pgrep -f "/usr/bin/variety" >/dev/null 2>&1 && [ "$i" -lt 20 ]; do
+        sleep 0.5
+        i=$((i + 1))
+    done
+    pkill -f "/usr/bin/variety" >/dev/null 2>&1 || true
+fi
+
+# Ensure Variety is relaunched even if the backup exits early or fails
+trap restart_variety EXIT INT TERM
 
 # PNGs from Midjourney (>7 days old), preserving subfolder structure
 find "$MJ_SRC" -type f -name "*.png" -mtime +7 \

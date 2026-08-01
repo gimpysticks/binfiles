@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+
+# Exit if no file argument was provided
+if [ -z "$1" ]; then
+  echo "Error: No file provided."
+  echo "Usage: $0 <filename>"
+  exit 1
+fi
+
+TARGET_FILE="$1"
+
+# Check if the target file actually exists
+if [ ! -f "$TARGET_FILE" ]; then
+  echo "Error: File '$TARGET_FILE' not found."
+  exit 1
+fi
+
+# Extract metadata using GNU stat (-c)
+FILE_TITLE=$(basename "$TARGET_FILE")
+MOD_DATE=$(stat -c %y "$TARGET_FILE" | cut -d' ' -f1)
+FILE_OWNER=$(stat -c %U "$TARGET_FILE")
+FILE_SIZE=$(stat -c %s "$TARGET_FILE")
+
+# Assemble the front matter header
+FRONT_MATTER=$(cat <<EOF
+---
+title: "$FILE_TITLE"
+date: $MOD_DATE
+owner: $FILE_OWNER
+size_bytes: $FILE_SIZE
+---
+
+EOF
+)
+
+# Prepend front matter to the file
+echo "$FRONT_MATTER$(cat "$TARGET_FILE")" > "$TARGET_FILE"
+
+echo "Front matter added to $TARGET_FILE successfully!"

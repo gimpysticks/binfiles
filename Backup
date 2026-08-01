@@ -29,6 +29,10 @@ WEBHOOK_URL="$BACKUP_HOOKWEB"
 # Verify mount point is available
 if ! mountpoint -q "$DEST"; then
     echo "ERROR: $DEST is not mounted. Aborting."
+    failmsg="$1 on $(hostname) Backup script FAILED: $DEST is not mounted $(date +%c)"
+    MESSAGE="$failmsg"
+    PAYLOAD='{"content": "'"$MESSAGE"'"}'
+    [ -n "$WEBHOOK_URL" ] && curl -s -X POST -H "Content-Type: application/json" -d "$PAYLOAD" "$WEBHOOK_URL"
     exit 1
 fi
 
