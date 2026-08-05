@@ -133,11 +133,6 @@
         "url": "https://gemini.google.com"
       },
       {
-        "icon": "_favicon",
-        "name": "Messages",
-        "url": "https://messages.google.com/web/conversations/new"
-      },
-      {
         "url": "https://aistudio.google.com/prompts/new_chat",
         "name": "GoogleAI Studio",
         "icon": "_favicon"
@@ -176,6 +171,11 @@
         "icon": "_favicon",
         "name": "Maps",
         "url": "https://www.google.com/maps"
+      },
+      {
+        "icon": "_favicon",
+        "name": "Messages",
+        "url": "https://messages.google.com/web/conversations/new"
       },
       {
         "icon": "_favicon",

@@ -1,8 +1,50 @@
 #!/bin/bash
-NAME="$1"
-URL="$2"
+set -euo pipefail
+
 FILE="$HOME/bin/bookmarks/tabliss.json"
 
+usage() {
+  cat >&2 <<'EOF'
+Usage: tabliss-add "Name" "https://example.com"
+
+Both arguments are required. Quote the name if it contains spaces.
+EOF
+  exit 1
+}
+
+[ $# -eq 2 ] || usage
+
+NAME="$1"
+URL="$2"
+
+[ -n "$NAME" ] && [ -n "$URL" ] || usage
+
+# Guard against passing the URL as the name (the classic one-arg mistake).
+case "$NAME" in
+  http://*|https://*) echo "Error: name looks like a URL: $NAME" >&2; usage ;;
+esac
+
+case "$URL" in
+  http://*|https://*) ;;
+  *) echo "Error: url must start with http:// or https:// (got: $URL)" >&2; usage ;;
+esac
+
+[ -f "$FILE" ] || { echo "Error: $FILE not found" >&2; exit 1; }
+
+if jq -e --arg url "$URL" '."data/y_kLCERtZG2C".links | any(.url == $url)' "$FILE" >/dev/null; then
+  echo "Already present, skipping: $URL" >&2
+  exit 0
+fi
+
+TMP="$(mktemp)"
+trap 'rm -f "$TMP"' EXIT
+
 jq --arg name "$NAME" --arg url "$URL" \
-  '."data/y_kLCERtZG2C".links += [{"icon": "_favicon", "name": $name, "url": $url}] | ."data/y_kLCERtZG2C".links |= sort_by(.name)' \
-  "$FILE" > /tmp/tabliss_tmp.json && mv /tmp/tabliss_tmp.json "$FILE"
+  '."data/y_kLCERtZG2C".links += [{"icon": "_favicon", "name": $name, "url": $url}]
+   | ."data/y_kLCERtZG2C".links |= sort_by(.name)' \
+  "$FILE" > "$TMP"
+
+mv "$TMP" "$FILE"
+trap - EXIT
+
+echo "Added: $NAME -> $URL"
