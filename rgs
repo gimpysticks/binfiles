@@ -1,0 +1,4 @@
+#!/bin/sh
+# RGS - Restart GNOME Shell safely under X11 without logging out or closing applications
+echo "Restarting GNOME Shell..."
+killall -3 gnome-shell
