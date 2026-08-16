@@ -1,19 +1,24 @@
 #!/usr/bin/env bash
 
-# Combine all markdown files in current directory into a single file
-# with a datetime-stamped filename. Each source file becomes its own
-# section, introduced by a highlighted wiki-style header so it's easy
-# to see which note you're reading.
+# Combine all markdown files in current directory (optionally recursing
+# into subdirectories) into a single file with a datetime-stamped
+# filename. Each source file becomes its own section, introduced by a
+# highlighted wiki-style header so it's easy to see which note you're
+# reading.
 
 # Default behavior
 generate_pdf=false
+recursive=false
 output_dir="$HOME/Documents/Zets_combined"
 
 # Parse command-line options
-while getopts ":po:" opt; do
+while getopts ":pro:" opt; do
   case ${opt} in
     p )
       generate_pdf=true
+      ;;
+    r )
+      recursive=true
       ;;
     o )
       output_dir="$OPTARG"
@@ -29,11 +34,32 @@ shift $((OPTIND -1))
 # Set output directory
 mkdir -p "$output_dir"
 
-# Generate filename with current date-time
-output_file="$output_dir/combined_$(date +%Y%m%d_%H%M%S).md"
+# Generate filename with current date-time, tagged with the name of the
+# directory being combined so multiple runs are easy to tell apart later
+dir_name="$(basename "$PWD" | tr ' ' '_')"
+output_file="$output_dir/combined_${dir_name}_$(date +%Y%m%d_%H%M%S).md"
 
-# Find all markdown files in current directory, sorted by newest first, excluding combined files
-mapfile -t md_files < <(ls -t *.md | grep -v '^combined_.*\.md$')
+# Find markdown files (current directory only, or recursively with -r),
+# sorted by newest first, excluding .git internals and combined files
+if [ "$recursive" = true ]; then
+    mapfile -t candidate_files < <(
+        find . -type f -name "*.md" -not -path "*/.git/*" -printf '%T@\t%p\n' 2>/dev/null \
+            | sort -t $'\t' -k1,1 -rn \
+            | cut -f2- \
+            | sed 's#^\./##'
+    )
+else
+    mapfile -t candidate_files < <(ls -t *.md 2>/dev/null)
+fi
+
+# Exclude previously generated combined files, matched by basename
+md_files=()
+for f in "${candidate_files[@]}"; do
+    base="$(basename "$f")"
+    if [[ "$base" != combined_*.md ]]; then
+        md_files+=("$f")
+    fi
+done
 
 # Check if any markdown files exist
 if [ ${#md_files[@]} -eq 0 ] || [ ! -f "${md_files[0]}" ]; then
