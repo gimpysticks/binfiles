@@ -67,6 +67,18 @@ if [ -z "$combined_file" ]; then
     exit 1
 fi
 
+# Filename should be tagged with the source directory's basename, e.g.
+# combined_<workdir-basename>_YYYYMMDD_HHMMSS.md
+expected_dir_tag="$(basename "$workdir")"
+combined_basename="$(basename "$combined_file")"
+if [[ "$combined_basename" =~ ^combined_${expected_dir_tag}_[0-9]{8}_[0-9]{6}\.md$ ]]; then
+    echo "PASS: output filename tagged with source directory name ($combined_basename)"
+    pass=$((pass + 1))
+else
+    echo "FAIL: output filename not tagged with source directory name (got: $combined_basename)"
+    fail=$((fail + 1))
+fi
+
 output=$(cat "$combined_file")
 
 assert_contains "$output" "[[root]]" "root-level file included"
