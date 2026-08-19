@@ -69,6 +69,11 @@
     "links": [
       {
         "icon": "_favicon",
+        "name": "Alexa",
+        "url": "https://alexa.amazon.com/"
+      },
+      {
+        "icon": "_favicon",
         "name": "Amazon",
         "url": "https://www.amazon.com"
       },

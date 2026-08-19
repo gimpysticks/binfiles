@@ -1,0 +1,2 @@
+#!/bin/zsh
+simple-mtpfs -o allow_other /mnt/phone && echo "Phone mounted at /mnt/phone" || (mkdir -p /mnt/phone && simple-mtpfs -o allow_other /mnt/phone && echo "Phone mounted at /mnt/phone")
