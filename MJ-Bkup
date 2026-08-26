@@ -11,40 +11,40 @@ VARIETY_WAS_RUNNING=0
 
 # Relaunch Variety (only if it was running and we have a display)
 restart_variety() {
-    [ "$VARIETY_WAS_RUNNING" -eq 1 ] || return 0
-    if [ -n "$DISPLAY" ] || [ -n "$WAYLAND_DISPLAY" ]; then
-        /usr/bin/variety --profile "$VARIETY_PROFILE" >/dev/null 2>&1 &
-    fi
+  [ "$VARIETY_WAS_RUNNING" -eq 1 ] || return 0
+  if [ -n "$DISPLAY" ] || [ -n "$WAYLAND_DISPLAY" ]; then
+    /usr/bin/variety --profile "$VARIETY_PROFILE" >/dev/null 2>&1 &
+  fi
 }
 
 # Stop Variety first: rsync --remove-source-files below can delete the image
 # Variety has marked as the current wallpaper, corrupting its saved state.
 if pgrep -f "/usr/bin/variety" >/dev/null 2>&1; then
-    VARIETY_WAS_RUNNING=1
-    /usr/bin/variety --profile "$VARIETY_PROFILE" --quit >/dev/null 2>&1 || true
-    i=0
-    while pgrep -f "/usr/bin/variety" >/dev/null 2>&1 && [ "$i" -lt 20 ]; do
-        sleep 0.5
-        i=$((i + 1))
-    done
-    pkill -f "/usr/bin/variety" >/dev/null 2>&1 || true
+  VARIETY_WAS_RUNNING=1
+  /usr/bin/variety --profile "$VARIETY_PROFILE" --quit >/dev/null 2>&1 || true
+  i=0
+  while pgrep -f "/usr/bin/variety" >/dev/null 2>&1 && [ "$i" -lt 20 ]; do
+    sleep 0.5
+    i=$((i + 1))
+  done
+  pkill -f "/usr/bin/variety" >/dev/null 2>&1 || true
 fi
 
 # Ensure Variety is relaunched even if the backup exits early or fails
 trap restart_variety EXIT INT TERM
 
 # PNGs from Midjourney (>7 days old), preserving subfolder structure
-find "$MJ_SRC" -type f -name "*.png" -mtime +7 \
-  | sed "s|^$MJ_SRC/||" \
-  | rsync -av --remove-source-files --files-from=- "$MJ_SRC/" "$MJ_DST/"
+find "$MJ_SRC" -type f -name "*.png" -mtime +5 |
+  sed "s|^$MJ_SRC/||" |
+  rsync -av --remove-source-files --files-from=- "$MJ_SRC/" "$MJ_DST/"
 
 # ZIPs from Midjourney (>7 days old), preserving subfolder structure
-find "$MJ_SRC" -type f -name "*.zip" -mtime +7 \
-  | sed "s|^$MJ_SRC/||" \
-  | rsync -av --remove-source-files --files-from=- "$MJ_SRC/" "$ZIP_DST/"
+find "$MJ_SRC" -type f -name "*.zip" -mtime +5 |
+  sed "s|^$MJ_SRC/||" |
+  rsync -av --remove-source-files --files-from=- "$MJ_SRC/" "$ZIP_DST/"
 
 # Move directories older than 7 days from Videos, then remove from source
-find "$VID_SRC" -mindepth 1 -maxdepth 1 -type d -mtime +7 | while IFS= read -r dir; do
-    rsync -av "$dir/" "$VID_DST/$(basename "$dir")/"
-    rm -rf "$dir"
+find "$VID_SRC" -mindepth 1 -maxdepth 1 -type d -mtime +5 | while IFS= read -r dir; do
+  rsync -av "$dir/" "$VID_DST/$(basename "$dir")/"
+  rm -rf "$dir"
 done

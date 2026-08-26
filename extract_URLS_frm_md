@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+# 1. Validate argument
+if [ -z "$1" ]; then
+  echo "Usage: $0 <markdown_file>" >&2
+  exit 1
+fi
+
+if [ ! -f "$1" ]; then
+  echo "Error: File '$1' not found." >&2
+  exit 1
+fi
+
+# 2. Extract only direct video URLs (matching /video or /prof-video patterns), clean whitespace, and pass to yt-dlp
+perl -0777 -ne 'while(/\((https?:\/\/(?:www\.)?xvideos\.com\/(?:video|prof-video-)[^)]+)\)/gs){ ($u=$1)=~s/\s+//g; print "$u\n" unless $u =~ /\.jpe?g$/i; }' "$1" | yt-dlp --batch-file -
