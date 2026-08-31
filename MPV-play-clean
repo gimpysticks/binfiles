@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+
+# Select one or multiple files using fzf (Tab to multi-select, Enter to confirm)
+files=$(fzf --multi --prompt="Select video/audio > ")
+
+# Exit if nothing was selected
+[ -z "$files" ] && exit 0
+
+# Process each selected file
+while IFS= read -r file; do
+  [ -z "$file" ] && continue
+
+  echo -e "\n▶ Playing: $file"
+  mpv --fs "$file"
+
+  # Prompt for deletion (reads from /dev/tty so it works in loops/subshells)
+  read -r -p "Delete \"$file\"? [y/N] " answer </dev/tty
+  case "$answer" in
+  [yY] | [yY][eE][sS])
+    rm -v "$file"
+    ;;
+  *)
+    echo "Kept: $file"
+    ;;
+  esac
+done <<<"$files"
+
