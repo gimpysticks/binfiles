@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Capture a screenshot from the Android device and save to Pictures
+set -euo pipefail
+
+OUT_DIR="$HOME/Pictures/Screenshots"
+mkdir -p "$OUT_DIR"
+
+TIMESTAMP=$(date +"%Y-%m-%d_%H-%M-%S")
+OUTFILE="$OUT_DIR/phone_${TIMESTAMP}.png"
+
+echo "📸 Capturing screenshot from device..."
+adb exec-out screencap -p > "$OUTFILE"
+
+if [ -s "$OUTFILE" ]; then
+    echo "✅ Screenshot saved to: $OUTFILE"
+else
+    echo "❌ Failed to capture screenshot. Make sure phone is connected and authorized."
+    rm -f "$OUTFILE"
+    exit 1
+fi

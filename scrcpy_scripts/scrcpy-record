@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Mirror and record the Android session to an MP4 video file
+set -euo pipefail
+
+REC_DIR="$HOME/Videos/scrcpy_recordings"
+mkdir -p "$REC_DIR"
+
+TIMESTAMP=$(date +"%Y-%m-%d_%H-%M-%S")
+OUTFILE="$REC_DIR/recording_${TIMESTAMP}.mp4"
+
+echo "==> Checking for connected Android device..."
+DEVICE_COUNT=$(adb devices | grep -v "List of devices" | grep -v "^$" | grep -w "device" | wc -l)
+
+if [ "$DEVICE_COUNT" -eq 0 ]; then
+    echo "❌ No authorized Android device detected. Connect device and retry."
+    exit 1
+fi
+
+echo "📹 Recording session to: $OUTFILE"
+echo "💡 Stop recording at any time by simply closing the scrcpy -m 1024 window."
+scrcpy -m 1024 --record="$OUTFILE" --stay-awake --window-title="Android Phone (Recording...)" "$@"
+echo "✅ Recording successfully saved to: $OUTFILE"

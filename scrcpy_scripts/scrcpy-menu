@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# All-in-one launcher menu for Android phone management
+set -euo pipefail
+
+SCRIPTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+while true; do
+    clear
+    echo "============================================="
+    echo "       🤖 Android Phone Control Hub"
+    echo "============================================="
+    echo "Current ADB Device Status:"
+    adb devices -l | sed '1d;/^$/d' | sed 's/^/  /' || true
+    echo "---------------------------------------------"
+    echo " 1) 🚀 USB Mirroring (Stay Awake)"
+    echo " 2) 🔋 Screen-Off Mode (Save Battery / Heat)"
+    echo " 3) 🌐 Wireless Wi-Fi Connection"
+    echo " 4) 📹 Record Screen to Video (.mp4)"
+    echo " 5) 📸 Take Screenshot"
+    echo " 6) 🔄 Restart ADB Server"
+    echo " 7) 🔌 Disconnect Wireless (adb disconnect)"
+    echo " 0) Exit"
+    echo "============================================="
+    read -rp "Select an option [0-7]: " choice
+
+    case "$choice" in
+        1) "$SCRIPTS_DIR/scrcpy-usb"; break ;;
+        2) "$SCRIPTS_DIR/scrcpy-screen-off"; break ;;
+        3) "$SCRIPTS_DIR/scrcpy-wifi"; break ;;
+        4) "$SCRIPTS_DIR/scrcpy-record"; break ;;
+        5) "$SCRIPTS_DIR/scrcpy-screenshot"; read -rp "Press Enter to continue..." ;;
+        6) adb kill-server && adb start-server; read -rp "ADB server restarted. Press Enter..." ;;
+        7) adb disconnect; read -rp "Disconnected all wireless devices. Press Enter..." ;;
+        0) echo "Goodbye!"; exit 0 ;;
+        *) echo "Invalid option"; sleep 1 ;;
+    esac
+done

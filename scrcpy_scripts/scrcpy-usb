@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Launch scrcpy -m 1024 over USB with optimized settings
+set -euo pipefail
+
+echo "==> Looking for USB Android device..."
+DEVICE_COUNT=$(adb devices | grep -v "List of devices" | grep -v "^$" | grep -w "device" | wc -l)
+
+if [ "$DEVICE_COUNT" -eq 0 ]; then
+    echo "❌ No authorized Android device detected."
+    echo "   1. Ensure phone is plugged in via USB."
+    echo "   2. Ensure USB Debugging is ON."
+    echo "   3. Authorize the prompt on your phone screen."
+    exit 1
+fi
+
+echo "🚀 Launching scrcpy -m 1024 via USB (stay awake enabled)..."
+scrcpy -m 1024 -d --stay-awake --window-title="Android Phone (USB)" "$@"

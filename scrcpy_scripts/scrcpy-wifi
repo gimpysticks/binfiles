@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# Automatically configure and connect to Android over Wi-Fi TCP/IP
+set -euo pipefail
+
+PORT=5555
+
+echo "==> Setting up wireless scrcpy -m 1024 connection..."
+
+# Check if already connected over Wi-Fi
+WIFI_DEV=$(adb devices | grep ":$PORT" | grep -w "device" | awk '{print $1}' | head -n 1 || true)
+if [ -n "$WIFI_DEV" ]; then
+    echo "✅ Already connected to wireless device at $WIFI_DEV."
+    echo "🚀 Launching scrcpy -m 1024 over Wi-Fi..."
+    scrcpy -m 1024 -s "$WIFI_DEV" --stay-awake --window-title="Android Phone (Wi-Fi: $WIFI_DEV)" "$@"
+    exit 0
+fi
+
+# Check for USB device to auto-configure TCP/IP
+USB_DEV=$(adb devices -l | grep "usb:" | grep -w "device" | awk '{print $1}' | head -n 1 || true)
+
+if [ -n "$USB_DEV" ]; then
+    echo "📱 Found USB device: $USB_DEV"
+    echo "🔍 Detecting device Wi-Fi IP address..."
+    PHONE_IP=$(adb -s "$USB_DEV" shell ip -f inet addr show wlan0 2>/dev/null | grep 'inet ' | awk '{print $2}' | cut -d/ -f1 || true)
+    
+    if [ -z "$PHONE_IP" ]; then
+        PHONE_IP=$(adb -s "$USB_DEV" shell ip route 2>/dev/null | awk '{print $NF}' | grep -E "^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+" | head -n 1 || true)
+    fi
+
+    if [ -n "$PHONE_IP" ]; then
+        echo "🌐 Detected Phone IP: $PHONE_IP"
+        echo "⚙️ Enabling TCP/IP mode on port $PORT..."
+        adb -s "$USB_DEV" tcpip "$PORT"
+        sleep 2
+        echo "🔗 Connecting to $PHONE_IP:$PORT..."
+        adb connect "$PHONE_IP:$PORT"
+        echo "✅ Connected wirelessly! You may now unplug the USB cable if you wish."
+        echo "🚀 Launching scrcpy -m 1024 over Wi-Fi..."
+        scrcpy -m 1024 -s "$PHONE_IP:$PORT" --stay-awake --window-title="Android Phone (Wi-Fi: $PHONE_IP)" "$@"
+        exit 0
+    else
+        echo "⚠️ Could not automatically detect Wi-Fi IP from device."
+    fi
+fi
+
+# Fallback: prompt for IP if not auto-detected
+read -rp "Enter Phone Wi-Fi IP address (found in phone Settings > About > Status): " MANUAL_IP
+if [ -n "$MANUAL_IP" ]; then
+    echo "🔗 Connecting to $MANUAL_IP:$PORT..."
+    adb connect "$MANUAL_IP:$PORT"
+    scrcpy -m 1024 -s "$MANUAL_IP:$PORT" --stay-awake --window-title="Android Phone (Wi-Fi: $MANUAL_IP)" "$@"
+else
+    echo "❌ No IP address provided. Exiting."
+    exit 1
+fi
