@@ -64,3 +64,26 @@ Videos use a **directory-based move**: when an `.mp4` is older than 5
 days, the entire containing directory is moved — including companion
 files (`.mlt` project files, `.mp3` audio tracks, etc.). Empty
 directories are cleaned up afterward. Files matching `VID*` are excluded.
+
+## ytdlp-mp3
+
+Downloads a YouTube video or playlist as MP3. Copy a YouTube URL to the
+clipboard, then run `ytdlp-mp3`.
+
+### Cookie configuration
+
+YouTube frequently returns a "Sign in to confirm you're not a bot" error
+for anonymous requests. To work around this, the script authenticates
+using `--cookies-from-browser brave`, which extracts session cookies
+directly from your local Brave profile.
+
+- Requires Brave to be installed and logged into a Google/YouTube
+  account at least once.
+- **Close Brave before running** `ytdlp-mp3` if yt-dlp reports the
+  cookie database is locked (Brave holds a lock on its cookie store
+  while running).
+- To use a different browser instead, edit the `--cookies-from-browser`
+  argument in the script (e.g. `firefox`, `chrome`, `chromium`).
+- Only the `web` player client is used (`youtube:player_client=web`),
+  since the `android` client doesn't support cookie authentication and
+  is skipped by yt-dlp when cookies are supplied.
