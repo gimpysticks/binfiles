@@ -3,6 +3,7 @@
 set -euo pipefail
 
 PORT=5555
+export SNAP_LAUNCHER_NOTICE_ENABLED="false"
 
 echo "==> Setting up wireless scrcpy -m 1024 connection..."
 

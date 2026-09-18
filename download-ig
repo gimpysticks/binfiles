@@ -1,0 +1,150 @@
+#!/usr/bin/env bash
+#
+# download-ig - Download Instagram media using gallery-dl and browser cookies
+#
+set -euo pipefail
+
+DEFAULT_DIR="$HOME/Downloads/instagram_images"
+DEFAULT_BROWSER="firefox"
+
+OUT_DIR="$DEFAULT_DIR"
+BROWSER="$DEFAULT_BROWSER"
+FORCE_CLIPBOARD=false
+URLS=()
+
+usage() {
+    cat <<EOF
+Usage: download-ig [OPTIONS] [URL(s)... | file.txt]
+
+Download images and videos from Instagram posts.
+If no URLs or files are provided, it automatically reads URLs from your clipboard!
+
+Arguments:
+  URL(s)...           One or more Instagram URLs
+  file.txt            File containing Instagram URLs (one per line)
+
+Options:
+  -d, --dir DIR       Target download directory (default: ~/Downloads/instagram_images)
+  -b, --browser NAME  Browser for session cookies: firefox, chrome, chromium, brave (default: firefox)
+  -c, --clipboard     Explicitly read URLs from clipboard
+  -h, --help          Show this help message
+
+Examples:
+  download-ig                                # Grabs Instagram links currently on clipboard!
+  download-ig https://www.instagram.com/p/xxx/
+  download-ig -d ~/Pictures/ig urls.txt
+  cat urls.txt | download-ig
+EOF
+    exit 0
+}
+
+# Parse options
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -h|--help)
+            usage
+            ;;
+        -d|--dir)
+            OUT_DIR="$2"
+            shift 2
+            ;;
+        -b|--browser)
+            BROWSER="$2"
+            shift 2
+            ;;
+        -c|--clipboard)
+            FORCE_CLIPBOARD=true
+            shift
+            ;;
+        --)
+            shift
+            break
+            ;;
+        -*)
+            echo "Error: Unknown option $1" >&2
+            echo "Run 'download-ig --help' for usage." >&2
+            exit 1
+            ;;
+        *)
+            if [[ -f "$1" ]]; then
+                while IFS= read -r line || [[ -n "$line" ]]; do
+                    line="$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+                    [[ -n "$line" && ! "$line" =~ ^# ]] && URLS+=("$line")
+                done < "$1"
+            else
+                URLS+=("$1")
+            fi
+            shift
+            ;;
+    esac
+done
+
+# Read remaining arguments if any after --
+while [[ $# -gt 0 ]]; do
+    if [[ -f "$1" ]]; then
+        while IFS= read -r line || [[ -n "$line" ]]; do
+            line="$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+            [[ -n "$line" && ! "$line" =~ ^# ]] && URLS+=("$line")
+        done < "$1"
+    else
+        URLS+=("$1")
+    fi
+    shift
+done
+
+# Check dependencies
+GALLERY_DL="$(command -v gallery-dl || echo "$HOME/.local/bin/gallery-dl")"
+if [[ ! -x "$GALLERY_DL" ]]; then
+    echo "Error: gallery-dl is not installed or not executable." >&2
+    echo "Install it with: pip install --user gallery-dl" >&2
+    exit 1
+fi
+
+get_clipboard() {
+    if [[ -n "${WAYLAND_DISPLAY:-}" ]] && command -v wl-paste >/dev/null 2>&1; then
+        wl-paste 2>/dev/null || true
+    elif command -v xclip >/dev/null 2>&1; then
+        xclip -o -selection clipboard 2>/dev/null || true
+    elif command -v xsel >/dev/null 2>&1; then
+        xsel -b 2>/dev/null || true
+    fi
+}
+
+# If no URLs provided via args, check pipe (stdin) or clipboard
+if [[ ${#URLS[@]} -eq 0 ]]; then
+    if [ ! -t 0 ] && [ "$FORCE_CLIPBOARD" = false ]; then
+        # Piped input
+        while IFS= read -r line || [[ -n "$line" ]]; do
+            line="$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+            [[ -n "$line" && ! "$line" =~ ^# ]] && URLS+=("$line")
+        done
+    else
+        # Try clipboard
+        clip_content="$(get_clipboard)"
+        if [[ -n "$clip_content" ]]; then
+            while IFS= read -r line; do
+                line="$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+                if [[ "$line" =~ instagram\.com ]]; then
+                    URLS+=("$line")
+                fi
+            done <<< "$clip_content"
+        fi
+
+        if [[ ${#URLS[@]} -gt 0 ]]; then
+            echo "📋 Detected ${#URLS[@]} Instagram URL(s) from clipboard."
+        else
+            echo "No URLs provided and no Instagram URLs found on clipboard." >&2
+            echo "Run 'download-ig --help' for usage." >&2
+            exit 1
+        fi
+    fi
+fi
+
+mkdir -p "$OUT_DIR"
+echo "📂 Destination: $OUT_DIR"
+echo "🍪 Using browser session cookies: $BROWSER"
+echo "⬇️  Downloading ${#URLS[@]} item(s)..."
+
+"$GALLERY_DL" --cookies-from-browser "$BROWSER" --directory "$OUT_DIR" "${URLS[@]}"
+
+echo "✅ Download complete! Files saved to: $OUT_DIR"

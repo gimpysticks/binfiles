@@ -51,15 +51,16 @@ Script|Full|Purpose
 
 ## MJ-Bkup
 
-Backup script for Midjourney assets and video projects to the PNY USB
-drive (`/media/sticks/PNY`). Moves files older than 7 days, preserving
+Backup script for Midjourney assets, ChatGPT files, and video projects to the USB
+drive (`/media/sticks/MidJourney1`). Moves files older than 5 days, preserving
 subfolder structure.
 
-- **PNGs**: `~/Pictures/Midjourney` → `PNY/Midjourney/`
-- **ZIPs**: `~/Pictures/Midjourney` → `PNY/Midjourney/Zipfiles/`
-- **Videos**: `~/Videos` → `PNY/Videos/` (directory-based move)
+- **PNGs**: `~/Pictures/Midjourney` → `MidJourney1/Midjourney/`
+- **ZIPs**: `~/Pictures/Midjourney` → `MidJourney1/Midjourney/Zipfiles/`
+- **ChatGPT**: `~/Pictures/ChatGPT` → `MidJourney1/ChatGPT/`
+- **Videos**: `~/Videos` → `MidJourney1/Videos/` (directory-based move)
 
-Videos use a **directory-based move**: when an `.mp4` is older than 7
+Videos use a **directory-based move**: when an `.mp4` is older than 5
 days, the entire containing directory is moved — including companion
 files (`.mlt` project files, `.mp3` audio tracks, etc.). Empty
 directories are cleaned up afterward. Files matching `VID*` are excluded.

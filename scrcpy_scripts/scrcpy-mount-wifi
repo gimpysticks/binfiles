@@ -1,0 +1,392 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# scrcpy-mount-wifi
+# Mount Android phone wirelessly as a native Nautilus / GVFS mount point.
+# Compatible with GSConnect / KDE Connect SFTP, Wi-Fi FTP, WebDAV, and SSHFS.
+# ==============================================================================
+set -euo pipefail
+
+SYMLINK_PATH="${HOME}/Phone"
+UID_NUM=$(id -u)
+GVFS_DIR="/run/user/${UID_NUM}/gvfs"
+
+print_banner() {
+    echo "============================================="
+    echo "      📱 Android Wireless Storage Mount"
+    echo "============================================="
+}
+
+# Function to find active phone mounts in GVFS
+get_active_mount_uris() {
+    gio mount -l 2>/dev/null | grep -E "sftp://|ftp://|dav://" | grep -oE "(sftp|ftp|dav)://[^ ]+" || true
+}
+
+# Function to check status
+check_status() {
+    local mounts
+    mounts=$(get_active_mount_uris)
+    if [ -n "$mounts" ]; then
+        echo "✅ Active wireless mount(s) detected:"
+        while IFS= read -r uri; do
+            echo "   • $uri"
+        done <<< "$mounts"
+        if [ -L "$SYMLINK_PATH" ]; then
+            echo "   📂 Symlink: $SYMLINK_PATH -> $(readlink -f "$SYMLINK_PATH")"
+        fi
+        return 0
+    else
+        echo "ℹ️  No active wireless phone mounts found."
+        return 1
+    fi
+}
+
+# Function to unmount
+unmount_phone() {
+    local mounts
+    mounts=$(get_active_mount_uris)
+    if [ -z "$mounts" ]; then
+        echo "ℹ️  No active wireless mounts found to unmount."
+        rm -f "$SYMLINK_PATH"
+        return 0
+    fi
+
+    echo "🔌 Unmounting active wireless storage..."
+    while IFS= read -r uri; do
+        echo "   Unmounting $uri..."
+        gio mount -u "$uri" 2>/dev/null || gio mount -u -f "$uri" 2>/dev/null || true
+    done <<< "$mounts"
+
+    rm -f "$SYMLINK_PATH"
+    echo "✅ Wireless storage unmounted successfully."
+    if command -v notify-send &>/dev/null; then
+        notify-send -i phone "Phone Unmounted" "Wireless phone mount has been safely disconnected." 2>/dev/null || true
+    fi
+}
+
+# Function to auto-detect phone IP address
+detect_phone_ip() {
+    local ip=""
+
+    # 1. Check if connected via Wi-Fi ADB
+    if command -v adb &>/dev/null; then
+        ip=$(adb devices 2>/dev/null | grep -E "^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:[0-9]+" | awk '{print $1}' | head -n 1 | cut -d: -f1 || true)
+        if [ -n "$ip" ]; then
+            echo "$ip"
+            return 0
+        fi
+    fi
+
+    # 2. Check GSConnect DBus / dconf
+    if command -v gdbus &>/dev/null; then
+        local gs_ip
+        gs_ip=$(gdbus call --session --dest org.gnome.Shell.Extensions.GSConnect \
+            --object-path /org/gnome/Shell/Extensions/GSConnect \
+            --method org.freedesktop.DBus.ObjectManager.GetManagedObjects 2>/dev/null \
+            | grep -oE "lan://[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+" | head -n 1 | sed 's#lan://##' || true)
+        if [ -n "$gs_ip" ]; then
+            echo "$gs_ip"
+            return 0
+        fi
+    fi
+
+    # 3. Check if phone is connected via USB ADB to query its wlan0
+    if command -v adb &>/dev/null; then
+        local usb_dev
+        usb_dev=$(adb devices -l 2>/dev/null | grep "usb:" | grep -w "device" | awk '{print $1}' | head -n 1 || true)
+        if [ -n "$usb_dev" ]; then
+            ip=$(adb -s "$usb_dev" shell ip -f inet addr show wlan0 2>/dev/null | grep 'inet ' | awk '{print $2}' | cut -d/ -f1 || true)
+            if [ -z "$ip" ]; then
+                ip=$(adb -s "$usb_dev" shell ip route 2>/dev/null | awk '{print $NF}' | grep -E "^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+" | head -n 1 || true)
+            fi
+            if [ -n "$ip" ]; then
+                echo "$ip"
+                return 0
+            fi
+        fi
+    fi
+
+    echo ""
+}
+
+# Function to detect wireless file transfer service on phone
+detect_service() {
+    local ip="$1"
+    # Check GSConnect connected device via D-Bus
+    if command -v gdbus &>/dev/null; then
+        local gs_dev
+        gs_dev=$(gdbus call --session --dest org.gnome.Shell.Extensions.GSConnect \
+            --object-path /org/gnome/Shell/Extensions/GSConnect \
+            --method org.freedesktop.DBus.ObjectManager.GetManagedObjects 2>/dev/null \
+            | grep -oE "/org/gnome/Shell/Extensions/GSConnect/Device/[a-f0-9]+" | head -n 1 || true)
+        if [ -n "$gs_dev" ]; then
+            echo "gsconnect:$gs_dev"
+            return 0
+        fi
+    fi
+    # Check GSConnect / KDE Connect SFTP port 1739
+    if nc -z -w 1 "$ip" 1739 2>/dev/null; then
+        echo "kdeconnect:1739"
+        return 0
+    fi
+    # Check WiFi FTP Server port 2121
+    if nc -z -w 1 "$ip" 2121 2>/dev/null; then
+        echo "ftp:2121"
+        return 0
+    fi
+    # Check standard FTP port 21
+    if nc -z -w 1 "$ip" 21 2>/dev/null; then
+        echo "ftp:21"
+        return 0
+    fi
+    # Check WebDAV port 8080
+    if nc -z -w 1 "$ip" 8080 2>/dev/null; then
+        echo "dav:8080"
+        return 0
+    fi
+    # Check Termux SSH/SFTP port 8022
+    if nc -z -w 1 "$ip" 8022 2>/dev/null; then
+        echo "sftp:8022"
+        return 0
+    fi
+    # Check SSH port 2222
+    if nc -z -w 1 "$ip" 2222 2>/dev/null; then
+        echo "sftp:2222"
+        return 0
+    fi
+
+    echo "none"
+}
+
+# Main Mount Function
+mount_phone() {
+    print_banner
+
+    # Check if already mounted
+    local existing_mounts
+    existing_mounts=$(get_active_mount_uris)
+    if [ -n "$existing_mounts" ]; then
+        echo "⚠️  Phone storage appears to be ALREADY mounted:"
+        while IFS= read -r m; do
+            echo "   • $m"
+        done <<< "$existing_mounts"
+        echo "---------------------------------------------"
+        echo " 1) 📂 Open in Nautilus"
+        echo " 2) 🔌 Unmount and Disconnect"
+        echo " 3) 🔄 Remount"
+        echo " 0) Exit"
+        echo "---------------------------------------------"
+        read -rp "Select an option [1-3, 0 to exit]: " choice
+        case "$choice" in
+            1)
+                local gvfs_mount
+                gvfs_mount=$(find "$GVFS_DIR" -maxdepth 2 -type d 2>/dev/null | grep -E "sftp:|ftp:|dav:" | head -n 1 || true)
+                if [ -n "$gvfs_mount" ]; then
+                    if [ -d "$gvfs_mount/sdcard" ]; then
+                        nautilus "$gvfs_mount/sdcard" &>/dev/null &
+                    else
+                        nautilus "$gvfs_mount" &>/dev/null &
+                    fi
+                elif [ -L "$SYMLINK_PATH" ]; then
+                    nautilus "$SYMLINK_PATH" &>/dev/null &
+                else
+                    nautilus "other-locations:///" &>/dev/null &
+                fi
+                echo "🚀 Nautilus opened."
+                exit 0
+                ;;
+            2)
+                unmount_phone
+                exit 0
+                ;;
+            3)
+                unmount_phone
+                sleep 1
+                ;;
+            *)
+                exit 0
+                ;;
+        esac
+    fi
+
+    echo "🔍 Searching for phone on local network..."
+    PHONE_IP=$(detect_phone_ip)
+
+    if [ -n "$PHONE_IP" ]; then
+        echo "🌐 Detected Phone IP: $PHONE_IP"
+    else
+        read -rp "Enter Phone Wi-Fi IP address (e.g. 192.168.4.87): " PHONE_IP
+        if [ -z "$PHONE_IP" ]; then
+            echo "❌ No IP address provided. Exiting."
+            exit 1
+        fi
+    fi
+
+    echo "🔍 Scanning for wireless storage services on $PHONE_IP..."
+    SERVICE_INFO=$(detect_service "$PHONE_IP")
+    SERVICE_TYPE=$(echo "$SERVICE_INFO" | cut -d: -f1)
+    SERVICE_PORT=$(echo "$SERVICE_INFO" | cut -d: -f2)
+
+    MOUNT_URI=""
+    TARGET_SUBPATH=""
+
+    if [ "$SERVICE_TYPE" = "gsconnect" ]; then
+        echo "✅ Detected paired GSConnect device. Activating wireless mount..."
+        gdbus call --session --dest org.gnome.Shell.Extensions.GSConnect \
+            --object-path "$SERVICE_PORT" \
+            --method org.gtk.Actions.Activate "mount" "[]" "{}" &>/dev/null || true
+        sleep 2
+        TARGET_SUBPATH="sdcard"
+
+    elif [ "$SERVICE_TYPE" = "kdeconnect" ]; then
+        echo "✅ Detected GSConnect / KDE Connect SFTP service on port $SERVICE_PORT."
+        
+        # Ensure GSConnect private SSH key is loaded into ssh-agent for passwordless auth
+        local gs_key="${HOME}/.config/gsconnect/private.pem"
+        if [ -f "$gs_key" ]; then
+            if ! ssh-add -l 2>/dev/null | grep -q "private.pem"; then
+                echo "🔑 Registering GSConnect authentication key..."
+                ssh-add "$gs_key" 2>/dev/null || true
+            fi
+        fi
+
+        MOUNT_URI="sftp://kdeconnect@${PHONE_IP}:${SERVICE_PORT}/sdcard"
+        TARGET_SUBPATH="sdcard"
+
+    elif [ "$SERVICE_TYPE" = "ftp" ]; then
+        echo "✅ Detected Wi-Fi FTP service on port $SERVICE_PORT."
+        MOUNT_URI="ftp://${PHONE_IP}:${SERVICE_PORT}/"
+
+    elif [ "$SERVICE_TYPE" = "dav" ]; then
+        echo "✅ Detected WebDAV service on port $SERVICE_PORT."
+        MOUNT_URI="dav://${PHONE_IP}:${SERVICE_PORT}/"
+
+    elif [ "$SERVICE_TYPE" = "sftp" ]; then
+        echo "✅ Detected SSH/SFTP service on port $SERVICE_PORT."
+        read -rp "Enter username for SSH/SFTP (default: empty): " sftp_user
+        if [ -n "$sftp_user" ]; then
+            MOUNT_URI="sftp://${sftp_user}@${PHONE_IP}:${SERVICE_PORT}/"
+        else
+            MOUNT_URI="sftp://${PHONE_IP}:${SERVICE_PORT}/"
+        fi
+    else
+        echo "⚠️  No standard service automatically detected on $PHONE_IP."
+        echo "Select connection mode:"
+        echo " 1) KDE Connect / GSConnect (Port 1739)"
+        echo " 2) Wi-Fi FTP Server (Port 2121 or custom)"
+        echo " 3) WebDAV Server (Port 8080 or custom)"
+        echo " 4) SSH / SFTP (Port 8022, 2222, or custom)"
+        read -rp "Choice [1-4]: " manual_choice
+        case "$manual_choice" in
+            1)
+                local gs_key="${HOME}/.config/gsconnect/private.pem"
+                if [ -f "$gs_key" ]; then
+                    ssh-add "$gs_key" 2>/dev/null || true
+                fi
+                MOUNT_URI="sftp://kdeconnect@${PHONE_IP}:1739/sdcard"
+                TARGET_SUBPATH="sdcard"
+                ;;
+            2)
+                read -rp "FTP Port (default 2121): " custom_port
+                custom_port="${custom_port:-2121}"
+                MOUNT_URI="ftp://${PHONE_IP}:${custom_port}/"
+                ;;
+            3)
+                read -rp "WebDAV Port (default 8080): " custom_port
+                custom_port="${custom_port:-8080}"
+                MOUNT_URI="dav://${PHONE_IP}:${custom_port}/"
+                ;;
+            4)
+                read -rp "SFTP Port (default 8022): " custom_port
+                custom_port="${custom_port:-8022}"
+                read -rp "SFTP Username: " custom_user
+                if [ -n "$custom_user" ]; then
+                    MOUNT_URI="sftp://${custom_user}@${PHONE_IP}:${custom_port}/"
+                else
+                    MOUNT_URI="sftp://${PHONE_IP}:${custom_port}/"
+                fi
+                ;;
+            *)
+                echo "❌ Invalid choice. Exiting."
+                exit 1
+                ;;
+        esac
+    fi
+
+    if [ -n "$MOUNT_URI" ]; then
+        echo "🔗 Mounting $MOUNT_URI into Nautilus / GVFS..."
+        if ! gio mount "$MOUNT_URI" 2>&1; then
+            echo "❌ Mount failed. Check connection or verify app is running on the phone."
+            exit 1
+        fi
+    fi
+
+    # Wait briefly for GVFS to expose the filesystem
+    sleep 1
+
+    # Locate the local GVFS path
+    LOCAL_MOUNT=$(find "$GVFS_DIR" -maxdepth 2 -type d 2>/dev/null | grep "$PHONE_IP" | head -n 1 || true)
+
+    if [ -z "$LOCAL_MOUNT" ]; then
+        LOCAL_MOUNT=$(find "$GVFS_DIR" -maxdepth 2 -type d 2>/dev/null | grep -E "sftp:|ftp:|dav:" | head -n 1 || true)
+    fi
+
+    FINAL_TARGET="$LOCAL_MOUNT"
+    if [ -n "$TARGET_SUBPATH" ] && [ -d "$LOCAL_MOUNT/$TARGET_SUBPATH" ]; then
+        FINAL_TARGET="$LOCAL_MOUNT/$TARGET_SUBPATH"
+    fi
+
+    if [ -n "$FINAL_TARGET" ] && [ -d "$FINAL_TARGET" ]; then
+        # Create convenient user symlink
+        rm -f "$SYMLINK_PATH"
+        ln -s "$FINAL_TARGET" "$SYMLINK_PATH"
+
+        echo "============================================="
+        echo "✅ Successfully mounted to Nautilus!"
+        echo "📍 GVFS Mount Point: $FINAL_TARGET"
+        echo "📁 Quick Access Link: $SYMLINK_PATH"
+        echo "============================================="
+
+        if command -v notify-send &>/dev/null; then
+            notify-send -i phone "Phone Mounted Wirelessly" "Accessible in Nautilus and at ~/Phone" 2>/dev/null || true
+        fi
+
+        echo "🚀 Opening in Nautilus File Manager..."
+        nautilus "$FINAL_TARGET" &>/dev/null &
+    else
+        echo "✅ Mount registered in Nautilus sidebar!"
+        echo "🚀 Opening Nautilus..."
+        nautilus "other-locations:///" &>/dev/null &
+    fi
+}
+
+# CLI Argument handling
+case "${1:-}" in
+    -u|--unmount)
+        unmount_phone
+        ;;
+    -s|--status)
+        check_status
+        ;;
+    -o|--open)
+        if [ -L "$SYMLINK_PATH" ]; then
+            nautilus "$SYMLINK_PATH" &>/dev/null &
+        else
+            mount_phone
+        fi
+        ;;
+    -h|--help)
+        echo "Usage: $(basename "$0") [OPTIONS]"
+        echo ""
+        echo "Wirelessly mount Android phone into Nautilus File Manager."
+        echo ""
+        echo "Options:"
+        echo "  (none)          Interactive mount or connection manager"
+        echo "  -u, --unmount   Unmount wireless phone storage"
+        echo "  -s, --status    Show current wireless mount status"
+        echo "  -o, --open      Open mounted storage in Nautilus"
+        echo "  -h, --help      Display this help message"
+        ;;
+    *)
+        mount_phone
+        ;;
+esac
