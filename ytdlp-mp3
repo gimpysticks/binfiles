@@ -1,3 +1,16 @@
 #!/usr/bin/env zsh
+#
+# ytdlp-mp3 - Download a YouTube video/playlist as MP3.
+#
+# Usage:
+#   1. Copy a YouTube video or playlist URL to the clipboard.
+#   2. Run: ytdlp-mp3
+#
+# Notes:
+#   - Authenticates using cookies extracted from Brave (--cookies-from-browser
+#     brave) to avoid YouTube's "Sign in to confirm you're not a bot" error.
+#     Close Brave first if yt-dlp reports the cookie database is locked.
+#   - Uses the "web" player client only (youtube:player_client=web), since
+#     the "android" client does not support cookie authentication.
 
-yt-dlp -x --audio-format mp3 --extractor-args "youtube:player_client=android,web" $(xclip -selection clipboard -o)
+yt-dlp -x --audio-format mp3 --cookies-from-browser brave --extractor-args "youtube:player_client=web" $(xclip -selection clipboard -o)
