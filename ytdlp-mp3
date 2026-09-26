@@ -3,14 +3,78 @@
 # ytdlp-mp3 - Download a YouTube video/playlist as MP3.
 #
 # Usage:
-#   1. Copy a YouTube video or playlist URL to the clipboard.
-#   2. Run: ytdlp-mp3
+#   1. Copy a YouTube video or playlist URL to the clipboard, or pass it as an argument:
+#      ytdlp-mp3 [-b BROWSER] [URL]
+#
+# Options:
+#   -b, --browser BROWSER   Browser for cookies (brave, firefox, chrome, chromium)
+#                           Default: $YTDLP_BROWSER or brave
 #
 # Notes:
-#   - Authenticates using cookies extracted from Brave (--cookies-from-browser
-#     brave) to avoid YouTube's "Sign in to confirm you're not a bot" error.
-#     Close Brave first if yt-dlp reports the cookie database is locked.
+#   - Authenticates using cookies extracted from the browser (--cookies-from-browser)
+#     to avoid YouTube's "Sign in to confirm you're not a bot" error.
+#     Close the browser first if yt-dlp reports the cookie database is locked.
 #   - Uses the "web" player client only (youtube:player_client=web), since
 #     the "android" client does not support cookie authentication.
+#   - Detects already-downloaded files using a download archive (.ytdl-archive)
+#     and --no-overwrites to skip re-downloading existing tracks.
 
-yt-dlp -x --audio-format mp3 --cookies-from-browser brave --extractor-args "youtube:player_client=web" $(xclip -selection clipboard -o)
+browser="${YTDLP_BROWSER:-brave}"
+
+# Parse optional arguments
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -b|--browser)
+      browser="$2"
+      shift 2
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+archive_file=".ytdl-archive"
+pattern='\[([a-zA-Z0-9_-]{11})\]\.mp3$'
+
+# Avoid "no matches found" errors when no .mp3 files exist
+[[ -n "$ZSH_VERSION" ]] && setopt NULL_GLOB
+[[ -n "$BASH_VERSION" ]] && shopt -s nullglob 2>/dev/null || true
+
+# Seed archive from existing downloaded MP3s in the current directory if present
+typeset -A seen
+if [[ -f "$archive_file" ]]; then
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    seen[$line]=1
+  done < "$archive_file"
+fi
+
+for f in *.mp3; do
+  [[ -f "$f" ]] || continue
+  if [[ "$f" =~ $pattern ]]; then
+    video_id="${match[1]:-${BASH_REMATCH[1]}}"
+    entry="youtube $video_id"
+    if [[ -z "${seen[$entry]}" ]]; then
+      echo "$entry" >> "$archive_file"
+      seen[$entry]=1
+    fi
+  fi
+done
+
+# If no URL argument provided, read from clipboard
+if [[ $# -eq 0 ]]; then
+  clip_url="$(xclip -selection clipboard -o 2>/dev/null)"
+  if [[ -z "$clip_url" ]]; then
+    echo "Error: No URL provided and clipboard is empty." >&2
+    exit 1
+  fi
+  set -- "$clip_url"
+fi
+
+yt-dlp \
+  --download-archive "$archive_file" \
+  --no-overwrites \
+  -x --audio-format mp3 \
+  --cookies-from-browser "$browser" \
+  --extractor-args "youtube:player_client=web" \
+  "$@"

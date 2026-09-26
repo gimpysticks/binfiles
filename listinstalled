@@ -1,2 +1,10 @@
 #!/bin/bash
-cat /var/log/dpkg.log|grep "\ install\ "
+# If --dpkg-log is passed, show recent dpkg installation log
+if [ "$1" = "--dpkg-log" ]; then
+    cat /var/log/dpkg.log | grep " install "
+    exit 0
+fi
+
+# Run comprehensive software inventory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec "$SCRIPT_DIR/all-installed" "$@"

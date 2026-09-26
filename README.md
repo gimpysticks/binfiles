@@ -68,22 +68,33 @@ directories are cleaned up afterward. Files matching `VID*` are excluded.
 ## ytdlp-mp3
 
 Downloads a YouTube video or playlist as MP3. Copy a YouTube URL to the
-clipboard, then run `ytdlp-mp3`.
+clipboard or pass it as an argument:
 
-### Cookie configuration
+```bash
+ytdlp-mp3                             # reads URL from clipboard, uses Brave
+ytdlp-mp3 "https://youtube.com/..."    # reads URL from argument
+ytdlp-mp3 -b firefox                  # extracts cookies from Firefox
+ytdlp-mp3 -b firefox "https://..."    # custom browser and argument URL
+```
+
+### Skipping already-downloaded files
+
+The script automatically skips files that have already been downloaded:
+- Maintains a `.ytdl-archive` file in the current working directory to track downloaded video IDs.
+- On launch, pre-seeds `.ytdl-archive` from any existing `* [video_id].mp3` files in the folder.
+- Passes `--download-archive .ytdl-archive` and `--no-overwrites` to `yt-dlp` to avoid re-querying or overwriting existing tracks.
+
+### Cookie & Browser configuration
 
 YouTube frequently returns a "Sign in to confirm you're not a bot" error
 for anonymous requests. To work around this, the script authenticates
-using `--cookies-from-browser brave`, which extracts session cookies
-directly from your local Brave profile.
+using `--cookies-from-browser` (default: `brave`, or set via `YTDLP_BROWSER` / `-b`).
 
-- Requires Brave to be installed and logged into a Google/YouTube
-  account at least once.
-- **Close Brave before running** `ytdlp-mp3` if yt-dlp reports the
-  cookie database is locked (Brave holds a lock on its cookie store
-  while running).
-- To use a different browser instead, edit the `--cookies-from-browser`
-  argument in the script (e.g. `firefox`, `chrome`, `chromium`).
+- Supports `brave`, `firefox`, `chrome`, `chromium`.
+- Requires the chosen browser to be logged into a Google/YouTube account.
+- **Close the browser before running** `ytdlp-mp3` if yt-dlp reports the
+  cookie database is locked.
 - Only the `web` player client is used (`youtube:player_client=web`),
   since the `android` client doesn't support cookie authentication and
   is skipped by yt-dlp when cookies are supplied.
+

@@ -1,0 +1,750 @@
+#!/usr/bin/env python3
+"""
+all-installed - Comprehensive inventory of installed programs regardless of source or package type.
+
+Detects:
+  - Desktop GUI Applications (.desktop files across system, user, flatpak, snap)
+  - Flatpak Applications (flathub, system, user)
+  - Snap Applications (user & system snaps)
+  - AppImages (scans ~/Applications, ~/.local/opt, ~/.local/bin, ~/bin, $HOME)
+  - APT / DPKG (manually installed vs full selections)
+  - Cargo Packages (Rust crates & binaries)
+  - NPM Global Packages (Node.js global tools)
+  - Python / Pip User Packages & CLI tools (pip --user, pipx)
+  - Go Binaries (~/go/bin)
+  - Local User Scripts (~/bin, ~/.local/bin)
+"""
+
+import os
+import sys
+import glob
+import json
+import shutil
+import argparse
+import subprocess
+from datetime import datetime
+
+# ANSI Colors
+USE_COLOR = sys.stdout.isatty() and not os.environ.get("NO_COLOR")
+
+def color(text, code):
+    return f"\033[{code}m{text}\033[0m" if USE_COLOR else str(text)
+
+def bold(text): return color(text, "1")
+def green(text): return color(text, "32")
+def yellow(text): return color(text, "33")
+def blue(text): return color(text, "34")
+def magenta(text): return color(text, "35")
+def cyan(text): return color(text, "36")
+def dim(text): return color(text, "2")
+def red(text): return color(text, "31")
+
+def run_cmd(cmd, timeout=15):
+    try:
+        res = subprocess.run(
+            cmd,
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=timeout
+        )
+        return res.stdout.strip()
+    except Exception:
+        return ""
+
+def command_exists(cmd):
+    return shutil.which(cmd) is not None
+
+def parse_desktop_file(filepath):
+    try:
+        data = {}
+        in_entry = False
+        with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if line.startswith("[") and line.endswith("]"):
+                    in_entry = (line == "[Desktop Entry]")
+                    continue
+                if in_entry and "=" in line:
+                    k, v = line.split("=", 1)
+                    k = k.strip()
+                    if k not in data:
+                        data[k] = v.strip()
+        return data
+    except Exception:
+        return {}
+
+def collect_desktop_apps():
+    desktop_dirs = [
+        os.path.expanduser("~/.local/share/applications"),
+        "/usr/share/applications",
+        "/usr/local/share/applications",
+        "/var/lib/flatpak/exports/share/applications",
+        os.path.expanduser("~/.local/share/flatpak/exports/share/applications"),
+        "/var/lib/snapd/desktop/applications"
+    ]
+    apps = {}
+    for d in desktop_dirs:
+        if not os.path.isdir(d):
+            continue
+        for p in glob.glob(os.path.join(d, "*.desktop")):
+            base = os.path.basename(p)
+            info = parse_desktop_file(p)
+            if not info or info.get("NoDisplay", "").lower() == "true":
+                continue
+            name = info.get("Name", "").strip()
+            if not name or base in apps:
+                continue
+
+            # Classify source of desktop entry
+            exec_str = info.get("Exec", "").strip()
+            source = "System / APT"
+            if "flatpak" in d or "flatpak run" in exec_str:
+                source = "Flatpak"
+            elif "snap" in d or "/snap/" in exec_str:
+                source = "Snap"
+            elif ".local" in d:
+                source = "User / Custom"
+            elif ".AppImage" in exec_str or ".appimage" in exec_str:
+                source = "AppImage"
+
+            apps[base] = {
+                "name": name,
+                "exec": exec_str,
+                "file": p,
+                "source": source,
+                "comment": info.get("Comment", ""),
+                "categories": info.get("Categories", "")
+            }
+    return sorted(apps.values(), key=lambda x: x["name"].lower())
+
+def collect_flatpaks():
+    if not command_exists("flatpak"):
+        return []
+    out = run_cmd("flatpak list --app --columns=application,name,version,origin")
+    items = []
+    for line in out.splitlines():
+        if not line.strip():
+            continue
+        parts = line.split("\t")
+        if len(parts) >= 2:
+            app_id = parts[0].strip()
+            name = parts[1].strip() if len(parts) > 1 else app_id
+            ver = parts[2].strip() if len(parts) > 2 else ""
+            origin = parts[3].strip() if len(parts) > 3 else ""
+            items.append({
+                "id": app_id,
+                "name": name,
+                "version": ver,
+                "origin": origin
+            })
+    return sorted(items, key=lambda x: x["name"].lower())
+
+def collect_snaps():
+    if not command_exists("snap"):
+        return []
+    out = run_cmd("snap list")
+    items = []
+    lines = out.splitlines()
+    if len(lines) > 1:
+        for line in lines[1:]:
+            parts = line.split()
+            if len(parts) >= 2:
+                name = parts[0]
+                version = parts[1]
+                tracking = parts[3] if len(parts) > 3 else ""
+                publisher = parts[4] if len(parts) > 4 else ""
+                is_core = name in ["bare", "core", "core18", "core20", "core22", "core24", "snapd"]
+                items.append({
+                    "name": name,
+                    "version": version,
+                    "tracking": tracking,
+                    "publisher": publisher,
+                    "is_core": is_core
+                })
+    return sorted(items, key=lambda x: (x["is_core"], x["name"].lower()))
+
+def collect_appimages():
+    home = os.path.expanduser("~")
+    search_dirs = [
+        os.path.join(home, "Applications"),
+        os.path.join(home, ".local", "opt"),
+        os.path.join(home, ".local", "bin"),
+        os.path.join(home, "bin"),
+        "/opt",
+        "/usr/local/bin"
+    ]
+    found = set()
+
+    for d in search_dirs:
+        if os.path.isdir(d):
+            for root, _, files in os.walk(d):
+                for f in files:
+                    if f.lower().endswith(".appimage"):
+                        found.add(os.path.realpath(os.path.join(root, f)))
+
+    # Also search home directory top level and visible subdirectories (depth <= 2)
+    for root, dirs, files in os.walk(home):
+        dirs[:] = [d for d in dirs if not d.startswith(".") and d not in ["node_modules", "target", "build", "dist"]]
+        depth = root[len(home):].count(os.sep)
+        if depth >= 2:
+            dirs.clear()
+        for f in files:
+            if f.lower().endswith(".appimage"):
+                p = os.path.realpath(os.path.join(root, f))
+                found.add(p)
+
+    items = []
+    for p in sorted(found):
+        if os.path.isfile(p):
+            stat = os.stat(p)
+            size_mb = stat.st_size / (1024 * 1024)
+            executable = os.access(p, os.X_OK)
+            items.append({
+                "path": p,
+                "name": os.path.basename(p),
+                "size_mb": round(size_mb, 1),
+                "executable": executable
+            })
+    return sorted(items, key=lambda x: x["name"].lower())
+
+def collect_apt_manual():
+    if not command_exists("apt-mark"):
+        return []
+    out = run_cmd("apt-mark showmanual")
+    return sorted([line.strip() for line in out.splitlines() if line.strip()])
+
+def collect_apt_selections():
+    if not command_exists("dpkg"):
+        return []
+    out = run_cmd("dpkg --get-selections")
+    items = []
+    for line in out.splitlines():
+        if "deinstall" not in line and line.strip():
+            pkg = line.split()[0]
+            items.append(pkg)
+    return sorted(items)
+
+def collect_cargo():
+    if not command_exists("cargo"):
+        return []
+    out = run_cmd("cargo install --list")
+    crates = []
+    current_crate = None
+    for line in out.splitlines():
+        if line and not line.startswith(" "):
+            parts = line.split()
+            current_crate = {"name": parts[0], "version": parts[1] if len(parts) > 1 else "", "binaries": []}
+            crates.append(current_crate)
+        elif line.strip() and current_crate:
+            current_crate["binaries"].append(line.strip())
+    return crates
+
+def collect_npm_global():
+    if not command_exists("npm"):
+        return []
+    out = run_cmd("npm list -g --depth=0 --json")
+    items = []
+    if out:
+        try:
+            data = json.loads(out)
+            deps = data.get("dependencies", {})
+            for pkg, info in deps.items():
+                items.append({
+                    "name": pkg,
+                    "version": info.get("version", "")
+                })
+        except Exception:
+            pass
+    return sorted(items, key=lambda x: x["name"].lower())
+
+def collect_python_user():
+    items = []
+    # Check pip user packages
+    pip_cmd = "pip" if command_exists("pip") else ("pip3" if command_exists("pip3") else None)
+    if pip_cmd:
+        out = run_cmd(f"{pip_cmd} list --user --format=json")
+        if out:
+            try:
+                for entry in json.loads(out):
+                    items.append({
+                        "name": entry.get("name"),
+                        "version": entry.get("version"),
+                        "source": "pip --user"
+                    })
+            except Exception:
+                pass
+    # Check pipx
+    if command_exists("pipx"):
+        out = run_cmd("pipx list --json")
+        if out:
+            try:
+                data = json.loads(out)
+                for venv, info in data.get("venvs", {}).items():
+                    items.append({
+                        "name": venv,
+                        "version": info.get("metadata", {}).get("main_package", {}).get("package_version", ""),
+                        "source": "pipx"
+                    })
+            except Exception:
+                pass
+    return sorted(items, key=lambda x: x["name"].lower())
+
+def collect_go_binaries():
+    home = os.path.expanduser("~")
+    go_bin = os.path.join(home, "go", "bin")
+    if not os.path.isdir(go_bin):
+        return []
+    items = []
+    for f in os.listdir(go_bin):
+        p = os.path.join(go_bin, f)
+        if os.path.isfile(p) and os.access(p, os.X_OK):
+            items.append({
+                "name": f,
+                "path": p
+            })
+    return sorted(items, key=lambda x: x["name"].lower())
+
+def collect_local_scripts():
+    home = os.path.expanduser("~")
+    bin_dir = os.path.join(home, "bin")
+    if not os.path.isdir(bin_dir):
+        return []
+    items = []
+    for f in os.listdir(bin_dir):
+        p = os.path.join(bin_dir, f)
+        if os.path.isfile(p) and os.access(p, os.X_OK) and not f.startswith("."):
+            items.append(f)
+    return sorted(items)
+
+def collect_all_data():
+    return {
+        "timestamp": datetime.now().isoformat(),
+        "desktop_apps": collect_desktop_apps(),
+        "flatpaks": collect_flatpaks(),
+        "snaps": collect_snaps(),
+        "appimages": collect_appimages(),
+        "cargo": collect_cargo(),
+        "npm_global": collect_npm_global(),
+        "python_user": collect_python_user(),
+        "go_binaries": collect_go_binaries(),
+        "apt_manual": collect_apt_manual(),
+        "apt_selections": collect_apt_selections(),
+        "local_scripts": collect_local_scripts()
+    }
+
+def print_summary_table(data):
+    desktop_cnt = len(data["desktop_apps"])
+    flatpak_cnt = len(data["flatpaks"])
+    snap_cnt = len([s for s in data["snaps"] if not s["is_core"]])
+    appimage_cnt = len(data["appimages"])
+    cargo_cnt = len(data["cargo"])
+    npm_cnt = len(data["npm_global"])
+    python_cnt = len(data["python_user"])
+    go_cnt = len(data["go_binaries"])
+    apt_manual_cnt = len(data["apt_manual"])
+    local_scripts_cnt = len(data["local_scripts"])
+
+    print(bold("\n📦 Installed Software Inventory Summary\n" + "=" * 48))
+    table = [
+        ("🖥️  Desktop GUI Applications", desktop_cnt, "Installed launchers across all managers"),
+        ("📦 Flatpak Applications", flatpak_cnt, "User & system Flatpak bundles"),
+        ("⚡ Snap Applications", snap_cnt, "User-installed snap packages"),
+        ("🚀 AppImages", appimage_cnt, "Standalone portable executables"),
+        ("🦀 Cargo Binaries", cargo_cnt, "Rust installed packages & crates"),
+        ("🌐 Global NPM Packages", npm_cnt, "Node.js global CLI tools"),
+        ("🐍 Python User Packages", python_cnt, "pip --user / pipx CLI applications"),
+        ("🐹 Go Binaries", go_cnt, "~/go/bin compiled tools"),
+        ("📁 Local Custom Scripts", local_scripts_cnt, "~/bin custom executable commands"),
+        ("🐧 APT Manually Installed", apt_manual_cnt, "Debian/Ubuntu explicitly requested packages"),
+    ]
+
+    for label, count, desc in table:
+        print(f" {label:<32} {bold(cyan(f'{count:>5}'))}  {dim(desc)}")
+    print("=" * 48 + "\n")
+
+def search_all(data, query):
+    q = query.lower()
+    matches = []
+
+    for app in data["desktop_apps"]:
+        if q in app["name"].lower() or q in app["exec"].lower() or q in app.get("comment", "").lower():
+            matches.append(("Desktop GUI", app["name"], f"Source: {app['source']} | Exec: {app['exec']}"))
+
+    for f in data["flatpaks"]:
+        if q in f["name"].lower() or q in f["id"].lower():
+            matches.append(("Flatpak", f"{f['name']} ({f['id']})", f"Version: {f['version']} | {f['origin']}"))
+
+    for s in data["snaps"]:
+        if q in s["name"].lower():
+            matches.append(("Snap", s["name"], f"Version: {s['version']} | Tracking: {s['tracking']}"))
+
+    for a in data["appimages"]:
+        if q in a["name"].lower() or q in a["path"].lower():
+            matches.append(("AppImage", a["name"], f"Path: {a['path']} ({a['size_mb']} MB)"))
+
+    for c in data["cargo"]:
+        if q in c["name"].lower() or any(q in b.lower() for b in c["binaries"]):
+            matches.append(("Cargo", c["name"], f"Version: {c['version']} | Binaries: {', '.join(c['binaries'])}"))
+
+    for n in data["npm_global"]:
+        if q in n["name"].lower():
+            matches.append(("NPM Global", n["name"], f"Version: {n['version']}"))
+
+    for p in data["python_user"]:
+        if q in p["name"].lower():
+            matches.append(("Python", p["name"], f"Version: {p['version']} ({p['source']})"))
+
+    for g in data["go_binaries"]:
+        if q in g["name"].lower():
+            matches.append(("Go Binary", g["name"], f"Path: {g['path']}"))
+
+    for s in data["local_scripts"]:
+        if q in s.lower():
+            matches.append(("Local Script", s, f"Location: ~/bin/{s}"))
+
+    for p in data["apt_manual"]:
+        if q in p.lower():
+            matches.append(("APT (Manual)", p, "dpkg/apt user installed"))
+
+    print(bold(f"\n🔍 Search Results for '{query}': {len(matches)} match(es) found\n" + "-" * 60))
+    if not matches:
+        print(yellow("No programs or packages matched your query.\n"))
+        return
+
+    for category, name, details in matches:
+        cat_badge = magenta(f"[{category}]")
+        print(f" {cat_badge:<20} {bold(name)}")
+        print(f"   {dim(details)}")
+    print()
+
+def export_all(data, output_dir):
+    os.makedirs(output_dir, exist_ok=True)
+    print(bold(f"\n📁 Exporting installed programs manifest to: {output_dir}\n"))
+
+    # 1. Backward-compatible files for reinstall scripts
+    with open(os.path.join(output_dir, "apt_packages_list.txt"), "w") as f:
+        for pkg in data["apt_selections"]:
+            f.write(f"{pkg}\n")
+    print(f"  {green('✓')} Saved apt_packages_list.txt ({len(data['apt_selections'])} selections)")
+
+    with open(os.path.join(output_dir, "apt_manual_packages.txt"), "w") as f:
+        for pkg in data["apt_manual"]:
+            f.write(f"{pkg}\n")
+    print(f"  {green('✓')} Saved apt_manual_packages.txt ({len(data['apt_manual'])} manual packages)")
+
+    with open(os.path.join(output_dir, "flatpak_apps_list.txt"), "w") as f:
+        for app in data["flatpaks"]:
+            f.write(f"{app['id']}\n")
+    print(f"  {green('✓')} Saved flatpak_apps_list.txt ({len(data['flatpaks'])} apps)")
+
+    with open(os.path.join(output_dir, "snap_apps_list.txt"), "w") as f:
+        for s in data["snaps"]:
+            if not s["is_core"]:
+                f.write(f"{s['name']}\n")
+    print(f"  {green('✓')} Saved snap_apps_list.txt ({len([s for s in data['snaps'] if not s['is_core']])} apps)")
+
+    with open(os.path.join(output_dir, "appimage_files_list.txt"), "w") as f:
+        for img in data["appimages"]:
+            f.write(f"{img['path']}\n")
+    print(f"  {green('✓')} Saved appimage_files_list.txt ({len(data['appimages'])} AppImages)")
+
+    # 2. New package sources
+    with open(os.path.join(output_dir, "cargo_packages_list.txt"), "w") as f:
+        for c in data["cargo"]:
+            f.write(f"{c['name']} {c['version']}\n")
+    print(f"  {green('✓')} Saved cargo_packages_list.txt ({len(data['cargo'])} crates)")
+
+    with open(os.path.join(output_dir, "npm_global_packages_list.txt"), "w") as f:
+        for n in data["npm_global"]:
+            f.write(f"{n['name']}@{n['version']}\n")
+    print(f"  {green('✓')} Saved npm_global_packages_list.txt ({len(data['npm_global'])} packages)")
+
+    with open(os.path.join(output_dir, "python_packages_list.txt"), "w") as f:
+        for p in data["python_user"]:
+            f.write(f"{p['name']}=={p['version']} ({p['source']})\n")
+    print(f"  {green('✓')} Saved python_packages_list.txt ({len(data['python_user'])} packages)")
+
+    with open(os.path.join(output_dir, "go_binaries_list.txt"), "w") as f:
+        for g in data["go_binaries"]:
+            f.write(f"{g['name']}\t{g['path']}\n")
+    print(f"  {green('✓')} Saved go_binaries_list.txt ({len(data['go_binaries'])} binaries)")
+
+    with open(os.path.join(output_dir, "desktop_apps_list.txt"), "w") as f:
+        for d in data["desktop_apps"]:
+            f.write(f"{d['name']} | {d['source']} | {d['exec']} | {d['file']}\n")
+    print(f"  {green('✓')} Saved desktop_apps_list.txt ({len(data['desktop_apps'])} GUI apps)")
+
+    # 3. JSON dataset
+    with open(os.path.join(output_dir, "installed_programs.json"), "w") as f:
+        json.dump(data, f, indent=2)
+    print(f"  {green('✓')} Saved installed_programs.json")
+
+    # 4. Markdown summary report
+    md_path = os.path.join(output_dir, "summary_all_programs.md")
+    with open(md_path, "w") as f:
+        f.write(f"# Installed Programs Inventory\n\n")
+        f.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+        f.write("## Overview\n\n")
+        f.write("| Install Type / Source | Count | Description |\n")
+        f.write("| :--- | :--- | :--- |\n")
+        f.write(f"| Desktop GUI Applications | {len(data['desktop_apps'])} | Application launchers across desktop |\n")
+        f.write(f"| Flatpak Applications | {len(data['flatpaks'])} | Flathub & system flatpaks |\n")
+        f.write(f"| Snap Applications | {len([s for s in data['snaps'] if not s['is_core']])} | User snaps |\n")
+        f.write(f"| AppImages | {len(data['appimages'])} | Standalone AppImage bundles |\n")
+        f.write(f"| Cargo (Rust) | {len(data['cargo'])} | Cargo installed crates |\n")
+        f.write(f"| NPM Global (Node) | {len(data['npm_global'])} | Global npm CLI tools |\n")
+        f.write(f"| Python User Tools | {len(data['python_user'])} | pip user / pipx packages |\n")
+        f.write(f"| Go Binaries | {len(data['go_binaries'])} | ~/go/bin tools |\n")
+        f.write(f"| APT (Manual) | {len(data['apt_manual'])} | User-specified deb packages |\n")
+        f.write(f"| APT (All DPKG) | {len(data['apt_selections'])} | All packages including dependencies |\n")
+        f.write(f"| Local Scripts | {len(data['local_scripts'])} | ~/bin custom scripts |\n\n")
+
+        f.write("## Desktop Applications\n\n")
+        f.write("| Name | Type | Command |\n| :--- | :--- | :--- |\n")
+        for app in data["desktop_apps"]:
+            f.write(f"| {app['name']} | {app['source']} | `{app['exec']}` |\n")
+
+        f.write("\n## Flatpak Applications\n\n")
+        f.write("| Name | Application ID | Version | Origin |\n| :--- | :--- | :--- | :--- |\n")
+        for fp in data["flatpaks"]:
+            f.write(f"| {fp['name']} | `{fp['id']}` | {fp['version']} | {fp['origin']} |\n")
+
+        f.write("\n## Snap Applications\n\n")
+        f.write("| Name | Version | Tracking | Type |\n| :--- | :--- | :--- | :--- |\n")
+        for sp in data["snaps"]:
+            f.write(f"| `{sp['name']}` | {sp['version']} | {sp['tracking']} | {'Core' if sp['is_core'] else 'User'} |\n")
+
+        f.write("\n## AppImages\n\n")
+        f.write("| Name | Path | Size | Executable |\n| :--- | :--- | :--- | :--- |\n")
+        for ai in data["appimages"]:
+            f.write(f"| {ai['name']} | `{ai['path']}` | {ai['size_mb']} MB | {'Yes' if ai['executable'] else 'No'} |\n")
+
+        f.write("\n## Rust Cargo Crates\n\n")
+        for cg in data["cargo"]:
+            f.write(f"- **{cg['name']}** ({cg['version']}) -> Binaries: `{', '.join(cg['binaries'])}`\n")
+
+        f.write("\n## Node.js Global Packages\n\n")
+        for np in data["npm_global"]:
+            f.write(f"- `{np['name']}@{np['version']}`\n")
+
+        f.write("\n## Python User Packages\n\n")
+        for py in data["python_user"]:
+            f.write(f"- `{py['name']}=={py['version']}` ({py['source']})\n")
+
+    print(f"  {green('✓')} Saved summary_all_programs.md")
+
+    # 5. Generate comprehensive reinstall_apps.sh
+    reinstall_script = f"""#!/bin/bash
+# Multi-source reinstall script generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${{BASH_SOURCE[0]}}")" && pwd)"
+LOG_FILE="$SCRIPT_DIR/reinstall_$(date +%Y%m%d_%H%M%S).log"
+
+log() {{
+    echo "$1" | tee -a "$LOG_FILE"
+}}
+
+log "=== Reinstall started at $(date) ==="
+
+# 1. APT Packages (Manual)
+if [ -f "$SCRIPT_DIR/apt_manual_packages.txt" ]; then
+    log "\\n=== Installing APT Manual Packages ==="
+    while IFS= read -r pkg || [ -n "$pkg" ]; do
+        [ -z "$pkg" ] && continue
+        if dpkg -l | grep -q "^ii  $pkg "; then
+            log "SKIP: $pkg (already installed)"
+        else
+            log "INSTALL: $pkg"
+            sudo apt-get install -y "$pkg" >> "$LOG_FILE" 2>&1 || log "FAILED: $pkg"
+        fi
+    done < "$SCRIPT_DIR/apt_manual_packages.txt"
+fi
+
+# 2. Flatpak Apps
+if [ -f "$SCRIPT_DIR/flatpak_apps_list.txt" ] && command -v flatpak >/dev/null 2>&1; then
+    log "\\n=== Installing Flatpak Apps ==="
+    while IFS= read -r app || [ -n "$app" ]; do
+        [ -z "$app" ] && continue
+        if flatpak list --app | grep -q "^$app"; then
+            log "SKIP: $app (already installed)"
+        else
+            log "INSTALL: $app"
+            flatpak install -y flathub "$app" >> "$LOG_FILE" 2>&1 || log "FAILED: $app"
+        fi
+    done < "$SCRIPT_DIR/flatpak_apps_list.txt"
+fi
+
+# 3. Snap Apps
+if [ -f "$SCRIPT_DIR/snap_apps_list.txt" ] && command -v snap >/dev/null 2>&1; then
+    log "\\n=== Installing Snap Apps ==="
+    while IFS= read -r snap || [ -n "$snap" ]; do
+        [ -z "$snap" ] && continue
+        [ "$snap" = "snapd" ] && continue
+        if snap list 2>/dev/null | grep -q "^$snap "; then
+            log "SKIP: $snap (already installed)"
+        else
+            log "INSTALL: $snap"
+            sudo snap install "$snap" >> "$LOG_FILE" 2>&1 || log "FAILED: $snap"
+        fi
+    done < "$SCRIPT_DIR/snap_apps_list.txt"
+fi
+
+# 4. Cargo Crates
+if [ -f "$SCRIPT_DIR/cargo_packages_list.txt" ] && command -v cargo >/dev/null 2>&1; then
+    log "\\n=== Installing Cargo Packages ==="
+    while IFS= read -r line || [ -n "$line" ]; do
+        [ -z "$line" ] && continue
+        pkg=$(echo "$line" | awk '{{print $1}}')
+        log "INSTALL: cargo install $pkg"
+        cargo install "$pkg" >> "$LOG_FILE" 2>&1 || log "FAILED: cargo install $pkg"
+    done < "$SCRIPT_DIR/cargo_packages_list.txt"
+fi
+
+# 5. Global NPM Packages
+if [ -f "$SCRIPT_DIR/npm_global_packages_list.txt" ] && command -v npm >/dev/null 2>&1; then
+    log "\\n=== Installing Global NPM Packages ==="
+    while IFS= read -r line || [ -n "$line" ]; do
+        [ -z "$line" ] && continue
+        pkg=$(echo "$line" | cut -d'@' -f1)
+        [ "$pkg" = "npm" ] && continue
+        [ "$pkg" = "corepack" ] && continue
+        log "INSTALL: sudo npm install -g $pkg"
+        sudo npm install -g "$pkg" >> "$LOG_FILE" 2>&1 || log "FAILED: npm $pkg"
+    done < "$SCRIPT_DIR/npm_global_packages_list.txt"
+fi
+
+# 6. Python User Packages
+if [ -f "$SCRIPT_DIR/python_packages_list.txt" ] && command -v pip >/dev/null 2>&1; then
+    log "\\n=== Installing Python User Packages ==="
+    while IFS= read -r line || [ -n "$line" ]; do
+        [ -z "$line" ] && continue
+        pkg=$(echo "$line" | cut -d'=' -f1 | awk '{{print $1}}')
+        log "INSTALL: pip install --user $pkg"
+        pip install --user "$pkg" >> "$LOG_FILE" 2>&1 || log "FAILED: pip $pkg"
+    done < "$SCRIPT_DIR/python_packages_list.txt"
+fi
+
+log "\\n=== AppImage Reminders ==="
+if [ -f "$SCRIPT_DIR/appimage_files_list.txt" ]; then
+    log "AppImages to manually restore:"
+    cat "$SCRIPT_DIR/appimage_files_list.txt" | tee -a "$LOG_FILE"
+fi
+
+log "\\n=== Reinstallation finished at $(date) ==="
+"""
+    reinstall_path = os.path.join(output_dir, "reinstall_apps.sh")
+    with open(reinstall_path, "w") as f:
+        f.write(reinstall_script)
+    os.chmod(reinstall_path, 0o775)
+    print(f"  {green('✓')} Saved executable reinstall_apps.sh")
+
+    print(bold(f"\n✨ Export complete! Backup located at: {output_dir}\n"))
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Comprehensive inventory of installed programs regardless of source or package type."
+    )
+    parser.add_argument("search", nargs="?", help="Search query to filter installed programs across all sources")
+    parser.add_argument("--export", "-e", nargs="?", const="DEFAULT", help="Export inventory files (optionally specify directory)")
+    parser.add_argument("--json", action="store_true", help="Output all results as JSON")
+    parser.add_argument("--markdown", action="store_true", help="Output overview in Markdown")
+    parser.add_argument("--category", "-c", choices=["desktop", "flatpak", "snap", "appimage", "cargo", "npm", "python", "go", "apt", "local", "all"], help="Filter by specific category")
+    parser.add_argument("--all", "-a", action="store_true", help="Print full lists of all categories")
+
+    args = parser.parse_args()
+
+    data = collect_all_data()
+
+    if args.json:
+        print(json.dumps(data, indent=2))
+        return
+
+    if args.markdown:
+        # Quick markdown dump to stdout
+        print("# Installed Programs\n")
+        print_summary_table(data)
+        return
+
+    if args.export:
+        if args.export == "DEFAULT":
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            output_dir = os.path.expanduser(f"~/bin/reinstall_prep_{timestamp}")
+        else:
+            output_dir = os.path.abspath(os.path.expanduser(args.export))
+        export_all(data, output_dir)
+        return
+
+    if args.search:
+        search_all(data, args.search)
+        return
+
+    # Category view or default summary
+    print_summary_table(data)
+
+    if args.category or args.all:
+        cat = args.category or "all"
+
+        if cat in ["desktop", "all"]:
+            print(bold("\n🖥️  Desktop Applications:"))
+            for d in data["desktop_apps"]:
+                src = d['source']
+                print(f"  • {bold(d['name'])} {dim(f'[{src}]')} -> {d['exec']}")
+
+        if cat in ["flatpak", "all"]:
+            print(bold("\n📦 Flatpak Applications:"))
+            for f in data["flatpaks"]:
+                print(f"  • {bold(f['name'])} ({cyan(f['id'])}) {dim(f['version'])} [{f['origin']}]")
+
+        if cat in ["snap", "all"]:
+            print(bold("\n⚡ Snap Applications:"))
+            for s in data["snaps"]:
+                if not s["is_core"]:
+                    print(f"  • {bold(s['name'])} {dim(s['version'])} [{s['tracking']}]")
+
+        if cat in ["appimage", "all"]:
+            print(bold("\n🚀 AppImages:"))
+            for a in data["appimages"]:
+                size_mb = a['size_mb']
+                print(f"  • {bold(a['name'])} {dim(f'({size_mb} MB)')} -> {a['path']}")
+
+        if cat in ["cargo", "all"]:
+            print(bold("\n🦀 Cargo Packages:"))
+            for c in data["cargo"]:
+                print(f"  • {bold(c['name'])} {dim(c['version'])} (Binaries: {', '.join(c['binaries'])})")
+
+        if cat in ["npm", "all"]:
+            print(bold("\n🌐 NPM Global Packages:"))
+            for n in data["npm_global"]:
+                print(f"  • {bold(n['name'])} {dim(n['version'])}")
+
+        if cat in ["python", "all"]:
+            print(bold("\n🐍 Python User Packages:"))
+            for p in data["python_user"]:
+                print(f"  • {bold(p['name'])} {dim(p['version'])} [{p['source']}]")
+
+        if cat in ["go", "all"]:
+            print(bold("\n🐹 Go Binaries:"))
+            for g in data["go_binaries"]:
+                print(f"  • {bold(g['name'])} -> {g['path']}")
+
+        if cat in ["local", "all"]:
+            print(bold("\n📁 Local Scripts (~/bin):"))
+            print("  " + ", ".join(data["local_scripts"][:50]) + ("..." if len(data["local_scripts"]) > 50 else ""))
+
+        if cat in ["apt"]:
+            print(bold(f"\n🐧 APT Manually Installed ({len(data['apt_manual'])} packages):"))
+            print("  " + " ".join(data["apt_manual"]))
+
+        print()
+    else:
+        print(dim("Tip: Run 'all-installed <name>' to search (e.g. 'all-installed discord')"))
+        print(dim("Tip: Run 'all-installed --category flatpak' (or desktop, snap, appimage, cargo, npm, python, etc.)"))
+        print(dim("Tip: Run 'all-installed --export' to dump all lists + reinstall script for OS backup."))
+
+if __name__ == "__main__":
+    main()

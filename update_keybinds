@@ -16,6 +16,12 @@ echo "Dumping custom keybindings to /home/sticks/bin/custom-keybindings.dconf...
 # Dump custom keybindings to the specified file
 dconf dump /org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/ > /home/sticks/bin/custom-keybindings.dconf
 
-echo "Keybindings exported successfully!"
-echo "File location: /home/sticks/bin/custom-keybindings.dconf"
+echo "Keybindings exported successfully to /home/sticks/bin/custom-keybindings.dconf!"
+
+# Export and sync to Pop!_OS COSMIC format and update markdown reference
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -x "$SCRIPT_DIR/export_cosmic_keybinds.py" ]; then
+    echo "Syncing Pop!_OS COSMIC keybindings..."
+    "$SCRIPT_DIR/export_cosmic_keybinds.py"
+fi
 

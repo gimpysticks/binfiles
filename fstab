@@ -1,0 +1,13 @@
+# /etc/fstab: static file system information.
+#
+# Use 'blkid' to print the universally unique identifier for a
+# device; this may be used with UUID= as a more robust way to name devices
+# that works even if disks are added and removed. See fstab(5).
+#
+# <file system>  <mount point>  <type>  <options>  <dump>  <pass>
+UUID=da964de0-4526-441d-8909-c3f63309f3a9  /  ext4  noatime,errors=remount-ro  0  1
+/dev/mapper/cryptswap  none  swap  defaults  0  0
+UUID=e0be2e7d-fbd7-4d8d-8b7c-20731ff0fe13  /home  ext4  defaults  0  2
+
+# 4TB ADATA HD710 PRO USB backup drive (exFAT - cross-platform)
+UUID=FA77-2196  /mnt/backup  exfat  defaults,nofail,x-systemd.device-timeout=30  0  0

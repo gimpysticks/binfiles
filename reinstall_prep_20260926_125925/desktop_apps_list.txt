@@ -1,0 +1,116 @@
+Additional Drivers | System / APT | /usr/bin/software-properties-gtk --open-tab=4 | /usr/share/applications/software-properties-drivers.desktop
+Advanced Network Configuration | System / APT | nm-connection-editor | /usr/share/applications/nm-connection-editor.desktop
+AionUi | System / APT | /opt/AionUi/AionUi %U | /usr/share/applications/AionUi.desktop
+Archive Manager | System / APT | file-roller %U | /usr/share/applications/org.gnome.FileRoller.desktop
+Audacity | Flatpak | /usr/bin/flatpak run --branch=stable --arch=x86_64 --command=audacity --file-forwarding org.audacityteam.Audacity @@ %F @@ | /var/lib/flatpak/exports/share/applications/org.audacityteam.Audacity.desktop
+Beeper | User / Custom | /home/sticks/Applications/Beeper.AppImage %u | /home/sticks/.local/share/applications/beepertexts.desktop
+Bitwarden | Flatpak | /usr/bin/flatpak run --branch=stable --arch=x86_64 --command=bitwarden.sh --file-forwarding com.bitwarden.desktop @@u %U @@ | /home/sticks/.local/share/flatpak/exports/share/applications/com.bitwarden.desktop.desktop
+Blender | Flatpak | /usr/bin/flatpak run --branch=stable --arch=x86_64 --command=blender --file-forwarding org.blender.Blender @@ %f @@ | /var/lib/flatpak/exports/share/applications/org.blender.Blender.desktop
+Bottles | Flatpak | /usr/bin/flatpak run --branch=stable --arch=x86_64 --command=bottles --file-forwarding com.usebottles.bottles @@u %u @@ | /home/sticks/.local/share/flatpak/exports/share/applications/com.usebottles.bottles.desktop
+Brave Web Browser | User / Custom | /usr/bin/brave-browser-stable --profile-directory=Default %U | /home/sticks/.local/share/applications/brave-browser.desktop
+Calculator | System / APT | gnome-calculator | /usr/share/applications/org.gnome.Calculator.desktop
+Calendar | System / APT | gnome-calendar %U | /usr/share/applications/org.gnome.Calendar.desktop
+Character Map | System / APT | gucharmap | /usr/share/applications/gucharmap.desktop
+Clocks | Flatpak | /usr/bin/flatpak run --branch=stable --arch=x86_64 --command=gnome-clocks org.gnome.clocks | /home/sticks/.local/share/flatpak/exports/share/applications/org.gnome.clocks.desktop
+Connections | Flatpak | /usr/bin/flatpak run --branch=stable --arch=x86_64 --command=gnome-connections --file-forwarding org.gnome.Connections @@u %U @@ | /home/sticks/.local/share/flatpak/exports/share/applications/org.gnome.Connections.desktop
+Contacts | System / APT | gnome-contacts | /usr/share/applications/org.gnome.Contacts.desktop
+Cursor | User / Custom | /home/sticks/Applications/cursor.AppImage --no-sandbox %F | /home/sticks/.local/share/applications/cursor.desktop
+dconf Editor | Flatpak | /usr/bin/flatpak run --branch=stable --arch=x86_64 --command=start-dconf-editor ca.desrt.dconf-editor | /home/sticks/.local/share/flatpak/exports/share/applications/ca.desrt.dconf-editor.desktop
+Deskreen | User / Custom | /home/sticks/.local/share/applications/appimages/deskreen.AppImage | /home/sticks/.local/share/applications/deskreen.desktop
+digiKam | Flatpak | /usr/bin/flatpak run --branch=stable --arch=x86_64 --command=digikam org.kde.digikam -qwindowtitle %c | /var/lib/flatpak/exports/share/applications/org.kde.digikam.desktop
+Discord | Flatpak | /usr/bin/flatpak run --branch=stable --arch=x86_64 --command=com.discordapp.Discord --file-forwarding com.discordapp.Discord @@u %U @@ | /home/sticks/.local/share/flatpak/exports/share/applications/com.discordapp.Discord.desktop
+Disk Usage Analyzer | System / APT | baobab %U | /usr/share/applications/org.gnome.baobab.desktop
+Disks | System / APT | gnome-disks | /usr/share/applications/org.gnome.DiskUtility.desktop
+Document Scanner | System / APT | simple-scan | /usr/share/applications/simple-scan.desktop
+Document Viewer | System / APT | evince %U | /usr/share/applications/org.gnome.Evince.desktop
+Eddy | System / APT | com.github.donadigo.eddy %U | /usr/share/applications/com.github.donadigo.eddy.desktop
+Embellish | Flatpak | /usr/bin/flatpak run --branch=stable --arch=x86_64 --command=embellish io.github.getnf.embellish | /home/sticks/.local/share/flatpak/exports/share/applications/io.github.getnf.embellish.desktop
+Extension Manager | System / APT | extension-manager | /usr/share/applications/com.mattjakeman.ExtensionManager.desktop
+Extensions | System / APT | /usr/bin/gnome-extensions-app --gapplication-service | /usr/share/applications/org.gnome.Extensions.desktop
+Files | System / APT | nautilus --new-window %U | /usr/share/applications/org.gnome.Nautilus.desktop
+Firefox | System / APT | firefox %u | /usr/share/applications/firefox.desktop
+Flatseal | Flatpak | /usr/bin/flatpak run --branch=stable --arch=x86_64 --command=com.github.tchx84.Flatseal com.github.tchx84.Flatseal | /home/sticks/.local/share/flatpak/exports/share/applications/com.github.tchx84.Flatseal.desktop
+Fonts | System / APT | gnome-font-viewer %u | /usr/share/applications/org.gnome.font-viewer.desktop
+Geary | System / APT | geary %U | /usr/share/applications/org.gnome.Geary.desktop
+GNOME System Monitor | System / APT | gnome-system-monitor | /usr/share/applications/gnome-system-monitor-kde.desktop
+GNU Image Manipulation Program | System / APT | gimp-2.10 %U | /usr/share/applications/gimp.desktop
+Golf With Your Friends | Flatpak | flatpak run com.valvesoftware.Steam steam://rungameid/431240 | /home/sticks/.local/share/applications/Golf With Your Friends.desktop
+Google Chrome | User / Custom | /usr/bin/google-chrome-stable %U | /home/sticks/.local/share/applications/google-chrome.desktop
+Google Chrome | Flatpak | /usr/bin/flatpak run --branch=stable --arch=x86_64 --command=/app/bin/chrome --file-forwarding com.google.Chrome @@u %U @@ | /home/sticks/.local/share/flatpak/exports/share/applications/com.google.Chrome.desktop
+Guake Preferences | System / APT | guake -p | /usr/share/applications/guake-prefs.desktop
+guvcview | System / APT | guvcview | /usr/share/applications/guvcview.desktop
+Handy | System / APT | handy | /usr/share/applications/Handy.desktop
+Help | System / APT | yelp %u | /usr/share/applications/yelp.desktop
+Htop | System / APT | htop | /usr/share/applications/htop.desktop
+IBus Preferences | System / APT | ibus-setup | /usr/share/applications/org.freedesktop.IBus.Setup.desktop
+Image Viewer | System / APT | eog %U | /usr/share/applications/org.gnome.eog.desktop
+ImageMagick (color depth=q16) | System / APT | /usr/bin/display-im6.q16 -nostdin %F | /usr/share/applications/display-im6.q16.desktop
+Inkscape | System / APT | inkscape %F | /usr/share/applications/org.inkscape.Inkscape.desktop
+Input Method | System / APT | im-config | /usr/share/applications/im-config.desktop
+Language Support | System / APT | /usr/bin/gnome-language-selector | /usr/share/applications/gnome-language-selector.desktop
+LibreOffice | System / APT | libreoffice %U | /usr/share/applications/libreoffice-startcenter.desktop
+LibreOffice Calc | System / APT | libreoffice --calc %U | /usr/share/applications/libreoffice-calc.desktop
+LibreOffice Draw | System / APT | libreoffice --draw %U | /usr/share/applications/libreoffice-draw.desktop
+LibreOffice Impress | System / APT | libreoffice --impress %U | /usr/share/applications/libreoffice-impress.desktop
+LibreOffice Math | System / APT | libreoffice --math %U | /usr/share/applications/libreoffice-math.desktop
+LibreOffice Writer | System / APT | libreoffice --writer %U | /usr/share/applications/libreoffice-writer.desktop
+Meld | Flatpak | /usr/bin/flatpak run --branch=stable --arch=x86_64 --command=meld --file-forwarding org.gnome.meld @@ %F @@ | /home/sticks/.local/share/flatpak/exports/share/applications/org.gnome.meld.desktop
+Midnight Commander | System / APT | mc | /usr/share/applications/mc.desktop
+Midnight Commander editor | System / APT | mcedit | /usr/share/applications/mcedit.desktop
+mpv Media Player | System / APT | mpv --player-operation-mode=pseudo-gui -- %U | /usr/share/applications/mpv.desktop
+Neovim | System / APT | nvim %F | /usr/share/applications/nvim.desktop
+NordVPN | System / APT | nordvpn-gui | /usr/share/applications/nordvpn-gui.desktop
+OBS Studio | Flatpak | /usr/bin/flatpak run --branch=stable --arch=x86_64 --command=obs com.obsproject.Studio | /home/sticks/.local/share/flatpak/exports/share/applications/com.obsproject.Studio.desktop
+Passwords and Keys | System / APT | seahorse | /usr/share/applications/org.gnome.seahorse.Application.desktop
+Pop!_Shop | System / APT | io.elementary.appcenter %U | /usr/share/applications/io.elementary.appcenter.desktop
+Popsicle USB Flasher | System / APT | popsicle-gtk %f | /usr/share/applications/com.system76.Popsicle.desktop
+Power Statistics | System / APT | gnome-power-statistics | /usr/share/applications/org.gnome.PowerStats.desktop
+prerex | System / APT | prerex | /usr/share/applications/prerex.desktop
+Printers | System / APT | system-config-printer | /usr/share/applications/system-config-printer.desktop
+PulseAudio Volume Control | System / APT | pavucontrol | /usr/share/applications/pavucontrol.desktop
+ranger | System / APT | ranger | /usr/share/applications/ranger.desktop
+Remote Viewer | System / APT | remote-viewer %u | /usr/share/applications/remote-viewer.desktop
+Repoman | System / APT | /usr/lib/repoman/repoman.pkexec | /usr/share/applications/repoman.desktop
+Root | User / Custom | /home/sticks/Applications/Root.AppImage | /home/sticks/.local/share/applications/root.desktop
+RustDesk | System / APT | rustdesk %u | /usr/share/applications/rustdesk.desktop
+scrcpy (console) (unofficial snap) | Snap | /snap/bin/scrcpy.console --pause-on-exit=if-error | /var/lib/snapd/desktop/applications/scrcpy_console.desktop
+scrcpy (unofficial snap) | Snap | /snap/bin/scrcpy | /var/lib/snapd/desktop/applications/scrcpy_scrcpy.desktop
+Settings | System / APT | gnome-control-center | /usr/share/applications/gnome-control-center.desktop
+Shotcut | Flatpak | /usr/bin/flatpak run --branch=stable --arch=x86_64 --command=shotcut --file-forwarding org.shotcut.Shotcut @@ %F @@ | /home/sticks/.local/share/flatpak/exports/share/applications/org.shotcut.Shotcut.desktop
+Shotwell | System / APT | shotwell %U | /usr/share/applications/shotwell.desktop
+Show Applications | System / APT | dbus-send --session --dest=com.System76.Cosmic --type=method_call /com/System76/Cosmic com.System76.Cosmic.ToggleApplications | /usr/share/applications/pop-cosmic-applications.desktop
+Show Launcher | System / APT | dbus-send --session --dest=com.System76.Cosmic --type=method_call /com/System76/Cosmic com.System76.Cosmic.ToggleLauncher | /usr/share/applications/pop-cosmic-launcher.desktop
+Show Workspaces | System / APT | dbus-send --session --dest=com.System76.Cosmic --type=method_call /com/System76/Cosmic com.System76.Cosmic.ToggleWorkspaces | /usr/share/applications/pop-cosmic-workspaces.desktop
+Sober | Flatpak | /usr/bin/flatpak run --branch=stable --arch=x86_64 --command=sober --file-forwarding org.vinegarhq.Sober -- @@u %u @@ | /home/sticks/.local/share/flatpak/exports/share/applications/org.vinegarhq.Sober.desktop
+Software & Updates | System / APT | software-properties-gtk | /usr/share/applications/software-properties-gtk.desktop
+Standard Notes | Flatpak | /usr/bin/flatpak run --branch=stable --arch=x86_64 --command=start-standardnotes --file-forwarding org.standardnotes.standardnotes @@u %U @@ | /home/sticks/.local/share/flatpak/exports/share/applications/org.standardnotes.standardnotes.desktop
+Startup Applications | System / APT | gnome-session-properties | /usr/share/applications/gnome-session-properties.desktop
+Steam | Flatpak | /usr/bin/flatpak run --branch=stable --arch=x86_64 --command=/app/bin/steam --file-forwarding com.valvesoftware.Steam @@u %U @@ | /home/sticks/.local/share/flatpak/exports/share/applications/com.valvesoftware.Steam.desktop
+System Monitor | System / APT | gnome-system-monitor | /usr/share/applications/gnome-system-monitor.desktop
+System76 Driver | System / APT | system76-driver | /usr/share/applications/system76-driver.desktop
+Telegram | Flatpak | /usr/bin/flatpak run --branch=stable --arch=x86_64 --command=Telegram --file-forwarding org.telegram.desktop -- @@u %U @@ | /home/sticks/.local/share/flatpak/exports/share/applications/org.telegram.desktop.desktop
+Terminal | System / APT | gnome-terminal | /usr/share/applications/org.gnome.Terminal.desktop
+TeXdoctk | System / APT | texdoctk | /usr/share/applications/texdoctk.desktop
+TeXInfo | System / APT | info | /usr/share/applications/info.desktop
+Text Editor | System / APT | gedit %U | /usr/share/applications/org.gnome.gedit.desktop
+Thunderbird | System / APT | thunderbird %u | /usr/share/applications/thunderbird.desktop
+Tweaks | System / APT | gnome-tweaks | /usr/share/applications/org.gnome.tweaks.desktop
+UXTerm | System / APT | uxterm | /usr/share/applications/debian-uxterm.desktop
+Variety | System / APT | variety %U | /usr/share/applications/variety.desktop
+Variety Slideshow | System / APT | variety-slideshow %f | /usr/share/applications/variety-slideshow.desktop
+Videos | System / APT | totem %U | /usr/share/applications/org.gnome.Totem.desktop
+Vifm | System / APT | vifm %F | /usr/share/applications/vifm.desktop
+Vim | System / APT | vim %F | /usr/share/applications/vim.desktop
+Vinegar | Flatpak | /usr/bin/flatpak run --branch=stable --arch=x86_64 --command=vinegar --file-forwarding org.vinegarhq.Vinegar @@u %u @@ | /home/sticks/.local/share/flatpak/exports/share/applications/org.vinegarhq.Vinegar.desktop
+Virtual Machine Manager | System / APT | virt-manager | /usr/share/applications/virt-manager.desktop
+VLC media player | System / APT | /usr/bin/vlc --started-from-file %U | /usr/share/applications/vlc.desktop
+vprerex | System / APT | vprerex | /usr/share/applications/vprerex.desktop
+War Thunder | Flatpak | flatpak run com.valvesoftware.Steam steam://rungameid/236390 | /home/sticks/.local/share/applications/War Thunder.desktop
+Warp | System / APT | warp-terminal %U | /usr/share/applications/dev.warp.Warp.desktop
+Weather | System / APT | gapplication launch org.gnome.Weather | /usr/share/applications/org.gnome.Weather.desktop
+WoeUSB-ng | System / APT | woeusbgui | /usr/share/applications/WoeUSB-ng.desktop
+WPS Presentation | Snap | /snap/bin/wps-office.wpp %U | /var/lib/snapd/desktop/applications/wps-office_wpp.desktop
+WPS Spreadsheets | Snap | /snap/bin/wps-office.et %U | /var/lib/snapd/desktop/applications/wps-office_et.desktop
+WPS Writer | Snap | /snap/bin/wps-office.wps %U | /var/lib/snapd/desktop/applications/wps-office_wps.desktop
+XTerm | System / APT | xterm | /usr/share/applications/debian-xterm.desktop
+Zathura | System / APT | zathura %U | /usr/share/applications/org.pwmt.zathura.desktop
