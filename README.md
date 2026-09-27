@@ -65,6 +65,30 @@ days, the entire containing directory is moved — including companion
 files (`.mlt` project files, `.mp3` audio tracks, etc.). Empty
 directories are cleaned up afterward. Files matching `VID*` are excluded.
 
+## readgTTS.sh
+
+Reads selected/copied text aloud via `gtts-cli` (Google TTS) piped to `mpv`.
+Bound to `Super + Ctrl + r` in COSMIC (see `keybindings_reference.md`).
+
+### 2026-09-27 fix: silent failure due to missing `gtts` module
+
+The keybind stopped producing audio with no visible error. Root cause:
+`~/.local/bin/gtts-cli` shebangs to system `/usr/bin/python3`, but the
+`gtts` package was missing from that interpreter's environment
+(`ModuleNotFoundError: No module named 'gtts'`). The script's `notify-send`
+calls were also commented out, so the failure was invisible.
+
+Fix:
+- Reinstalled the dependency: `python3 -m pip install --user --break-system-packages gtts`
+  (Pop!_OS marks system Python as externally managed per PEP 668, so
+  `--break-system-packages` is required to match how `gtts-cli` was
+  originally installed).
+- Uncommented the `notify-send` lines in `readgTTS.sh` so future failures
+  (no text selected, or playback errors) surface as desktop notifications
+  instead of failing silently.
+- Verified by manually selecting text and running the script directly
+  (confirmed `mpv` received and played the generated audio).
+
 ## ytdlp-mp3
 
 Downloads a YouTube video or playlist as MP3. Copy a YouTube URL to the
