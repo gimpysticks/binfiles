@@ -30,6 +30,60 @@ SESSION_NAME="aiurls"
 AIURLS_BOOKMARKS_FILE="$HOME/Documents/bookmarks/ai.urls"
 BOOKMARKS_FILE="$AIURLS_BOOKMARKS_FILE"
 
+run_url_opener() {
+  local bookmarks_file="${BOOKMARKS_FILE:-$AIURLS_BOOKMARKS_FILE}"
+  echo "Processing URLs from: $bookmarks_file"
+
+  # Under COSMIC desktop, xdg-open defaults to a blocking generic mode.
+  # Prepending GNOME informs xdg-open to use gio/desktop portal asynchronously.
+  if [[ "${XDG_CURRENT_DESKTOP:-}" == *"COSMIC"* && "${XDG_CURRENT_DESKTOP:-}" != *"GNOME"* ]]; then
+    export XDG_CURRENT_DESKTOP="GNOME:$XDG_CURRENT_DESKTOP"
+  fi
+
+  local first_url=true
+
+  # Process URLs
+  cut -d'|' -f2 "$bookmarks_file" | while IFS= read -r url; do
+    # Strip carriage returns and leading/trailing whitespace
+    url="${url#"${url%%[![:space:]]*}"}"
+    url="${url%"${url##*[![:space:]]}"}"
+    url="${url//$'\r'/}"
+
+    # Skip empty lines and comment lines
+    if [ -n "$url" ] && [[ ! "$url" =~ ^# ]]; then
+      echo "Opening: $url"
+      # Launch completely detached from the tmux terminal so SIGHUP won't kill the browser on session exit
+      if command -v gio &>/dev/null; then
+        setsid -f gio open "$url" </dev/null >/dev/null 2>&1 || gio open "$url"
+      else
+        setsid -f xdg-open "$url" </dev/null >/dev/null 2>&1 || xdg-open "$url"
+      fi
+
+      if [ "$first_url" = true ]; then
+        sleep 2 # gives browser initial launch time if cold-starting
+        first_url=false
+      else
+        sleep 1 # gives browser time to open each tab
+      fi
+    fi
+  done
+
+  sleep 1
+  if [ -n "$WAYLAND_DISPLAY" ] && command -v wtype &>/dev/null; then
+    wtype -M ctrl -k 1 -m ctrl 2>/dev/null || true
+  elif command -v xdotool &>/dev/null; then
+    xdotool key ctrl+1 2>/dev/null || true
+  fi
+  sleep 1
+}
+
+# Internal execution mode when invoked inside tmux
+if [ "$1" = "--internal-run" ]; then
+  BOOKMARKS_FILE="$2"
+  run_url_opener
+  exit 0
+fi
+
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -65,38 +119,11 @@ if tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
   fi
 fi
 
-run_url_opener() {
-  local bookmarks_file="${BOOKMARKS_FILE:-$AIURLS_BOOKMARKS_FILE}"
-  echo "Processing URLs from: $bookmarks_file"
-  # Process URLs
-  cut -d'|' -f2 "$bookmarks_file" | while read url; do
-    # Skip empty lines
-    if [ -n "$url" ]; then
-      echo "Opening: $url"
-      if ! xdg-open "$url"; then
-        echo "Error opening URL: $url"
-      fi
-      sleep 1 # gives browser time to open each one
-    fi
-  done
-  xdotool key ctrl+1
-}
-
-# Create a new tmux session
-if ! tmux new-session -d -s "$SESSION_NAME"; then
+# Create a new tmux session running the URL opener directly
+SCRIPT_PATH="$(command -v "$0" 2>/dev/null || realpath "$0")"
+if ! tmux new-session -d -s "$SESSION_NAME" bash "$SCRIPT_PATH" --internal-run "$BOOKMARKS_FILE"; then
   echo "Error: Failed to create new tmux session"
   exit 1
 fi
-
-# Run the URL opener function within the tmux session
-# Pass the bookmarks file path to the function in the tmux session
-if ! tmux send-keys -t "$SESSION_NAME" "BOOKMARKS_FILE=\"$BOOKMARKS_FILE\"; $(declare -f run_url_opener); run_url_opener; tmux kill-session -t \"$SESSION_NAME\"" C-m; then
-  echo "Error: Failed to send commands to tmux session"
-  exit 1
-fi
-
-# Optionally attach to the session
-# Uncomment the line below if you want to attach to the session automatically
-# tmux attach-session -t "$SESSION_NAME"
 
 exit 0
