@@ -63,7 +63,7 @@ done
 
 # If no URL argument provided, read from clipboard
 if [[ $# -eq 0 ]]; then
-  clip_url="$(xclip -selection clipboard -o 2>/dev/null)"
+  clip_url="$(wl-paste 2>/dev/null || xclip -selection clipboard -o 2>/dev/null)"
   if [[ -z "$clip_url" ]]; then
     echo "Error: No URL provided and clipboard is empty." >&2
     exit 1

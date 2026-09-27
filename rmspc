@@ -16,13 +16,18 @@ else
         cleaned=$(pbpaste | clean_text)
         echo -n "$cleaned" | pbcopy
         echo "Cleaned clipboard content: $cleaned"
+    elif command -v wl-paste &> /dev/null && command -v wl-copy &> /dev/null; then
+        # Wayland
+        cleaned=$(wl-paste --no-newline | clean_text)
+        echo -n "$cleaned" | wl-copy
+        echo "Cleaned clipboard content: $cleaned"
     elif command -v xclip &> /dev/null; then
-        # Linux
+        # Linux (X11)
         cleaned=$(xclip -selection clipboard -o | clean_text)
         echo -n "$cleaned" | xclip -selection clipboard -i
         echo "Cleaned clipboard content: $cleaned"
     else
-        echo "Error: No standard input detected, and no clipboard tool (pbcopy/xclip) found."
+        echo "Error: No standard input detected, and no clipboard tool (wl-copy/xclip/pbcopy) found."
         exit 1
     fi
 fi

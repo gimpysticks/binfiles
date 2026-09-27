@@ -11,4 +11,4 @@ for tag in "$@"; do
     extra+=" #${tag}"
 done
 
-echo -n "Links in the bio #midjourney @gimpysticks${extra} " | xclip -selection clipboard -i
+echo -n "Links in the bio #midjourney @gimpysticks${extra} " | wl-copy

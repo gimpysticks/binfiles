@@ -1,2 +1,2 @@
 #!/bin/bash
-echo "Grinch portrayed as "|xclip -selection clipboard -i
+echo "Grinch portrayed as " | wl-copy

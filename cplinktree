@@ -1,2 +1,2 @@
 #!/bin/sh
-echo "For more visit www.linktr.ee/gimpysticks" | xclip -selection primary -i
+echo "For more visit www.linktr.ee/gimpysticks" | wl-copy

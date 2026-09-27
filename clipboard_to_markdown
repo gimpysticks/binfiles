@@ -1,10 +1,14 @@
-#!/bin/bash#!/bin/bash
-
+#!/bin/bash
+ 
 # Output file name (timestamped)
 output_file="clipboard_output_$(date +%Y%m%d_%H%M%S).md"
-
+ 
 # Step 1: Get clipboard content (plain or HTML)
-clipboard_content=$(xclip -selection clipboard -o)
+if command -v wl-paste >/dev/null 2>&1; then
+    clipboard_content=$(wl-paste -t text/html 2>/dev/null || wl-paste 2>/dev/null)
+elif command -v xclip >/dev/null 2>&1; then
+    clipboard_content=$(xclip -selection clipboard -o 2>/dev/null)
+fi
 
 # Step 2: Convert to markdown and preserve paragraphs
 echo "$clipboard_content" | pandoc --from=html --to=markdown --wrap=preserve -o "$output_file"

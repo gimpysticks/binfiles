@@ -1,3 +1,3 @@
 #!/bin/bash
-xclip -i /dev/null
+wl-copy --clear
 

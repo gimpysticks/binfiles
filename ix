@@ -10,5 +10,8 @@ fi
 url=$(curl -s -F 'f:1=<-' http://ix.io)
 wee "$url" 2>/dev/null
 echo "$url"
-which xclip >/dev/null || exit 0
-echo "$url" | xclip 
+if command -v wl-copy >/dev/null 2>&1; then
+  echo "$url" | wl-copy
+elif command -v xclip >/dev/null 2>&1; then
+  echo "$url" | xclip
+fi 

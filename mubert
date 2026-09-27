@@ -1,2 +1,2 @@
 #!/bin/bash
-echo "https://mubert.com/render/"|xclip -selection clipboard -i
+echo "https://mubert.com/render/" | wl-copy
