@@ -1,6 +1,5 @@
 #!/bin/bash
 
-<<<<<<< HEAD
 # Seriously, why do people fuck around with other editor-specific ways
 # of commenting things. You don't need no fucking "visual" mode. Vi
 # already *is* visual mode (of ex). So tired of people extending Vim to
@@ -8,10 +7,6 @@
 # you don't know how to integrate the shell, you don't know Vi. Learn it
 # *before* you "extend" it.
 
-while IFS= read -r line; do 
-=======
-
 while IFS= read -r line; do
->>>>>>> fc88f884f8202b5433c077cc66ea85196211e08c
   echo "${1:-#} $line"
 done
