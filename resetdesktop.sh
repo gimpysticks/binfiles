@@ -1,3 +1,1 @@
-killall -HUP cinnamon
-
-
+resetdesktop

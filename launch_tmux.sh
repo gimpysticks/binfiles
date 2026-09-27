@@ -1,2 +1,1 @@
-#!/bin/sh
-tmux attach||tmux new
+launch_tmux

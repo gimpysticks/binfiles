@@ -1,2 +1,1 @@
-#!/bin/sh
-setxkbmap -option "caps:escape"
+caps2esc

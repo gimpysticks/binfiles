@@ -1,2 +1,1 @@
-#!/bin/sh
-/usr/bin/rsync -av "/home/sticks/.luckyBackup/logs/" "/home/sticks/gimpysticks@gmail.com/luckybackup/"
+luckyback_logs2_google_drive

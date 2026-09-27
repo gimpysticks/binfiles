@@ -1,2 +1,1 @@
-#!/bin/sh
-systemctl --user restart pulseaudio
+start_pulse

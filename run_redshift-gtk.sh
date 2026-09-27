@@ -1,2 +1,1 @@
-#!/bin/sh
-/usr/bin/redshift-gtk &
+run_redshift-gtk

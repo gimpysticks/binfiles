@@ -275,7 +275,7 @@
         ],
         key: "r",
         description: Some("Read Human"),
-    ): Spawn("/home/sticks/bin/readgTTS.sh"),
+    ): Spawn("/home/sticks/bin/readgTTS"),
     (
         modifiers: [
             Super,
