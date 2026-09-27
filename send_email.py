@@ -9,7 +9,7 @@ gmail_password ='udcfljpnnxctzimp'
 subject = '2nd Test message for gimpy'  
 body = "Hey, what's up?\n\n- You crazy assed Gimp"
 
-email_text = """\  
+email_text = """\
 From: %s  
 To: %s  
 Subject: %s
