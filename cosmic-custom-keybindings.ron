@@ -1,7 +1,26 @@
 // =============================================================================
 // Pop!_OS COSMIC Custom Keybindings (RON Format)
-// Generated: 2026-09-26 13:13:01
-// Source: /home/sticks/bin/custom-keybindings.dconf
+// Repaired: 2026-09-27 14:09
+//
+// Changes from the previously corrupted live file:
+// - Fixed truncated F12 entry that made the whole file fail to parse
+// - Removed stray "TildaZ_0" duplicate that conflicted with F12
+// - War Thunder / Steam now use the native `steam` command (flatpak Steam
+//   has been uninstalled and replaced by the deb/native install)
+//
+// Removed entirely - confirmed NOT installed on this system:
+//   WiFi (gnome-control-center), Beeper (AppImage file missing),
+//   Glances, OpenRGB (flatpak), polychromatic-tray-applet, Hypnotix,
+//   toggle_nerd_dict (depends on missing nerd-dictation)
+//
+// Removed entirely - explicitly requested by user (both actually installed):
+//   Guake (F12) - dpkg shows installed and running as a background daemon;
+//     removing this binding only removes the F12 toggle, not the process.
+//   Digikam (Ctrl+Alt+d) - installed via flatpak (org.kde.digikam)
+//
+// Backups of the prior corrupted live file:
+//   /home/sticks/.config/cosmic/com.system76.CosmicSettings.Shortcuts/v1/custom.corrupted-backup-20260927-100423
+//   /home/sticks/bin/custom-live-CORRUPTED-backup-20260927-100423.ron
 //
 // File Location: ~/.config/cosmic/com.system76.CosmicSettings.Shortcuts/v1/custom
 // Repository Copy: /home/sticks/bin/cosmic-custom-keybindings.ron
@@ -14,18 +33,6 @@
 // =============================================================================
 
 {
-    (
-        modifiers: [],
-        key: "F12",
-        description: Some("Guake"),
-    ): Spawn("guake"),
-
-    (
-        modifiers: [],
-        key: "XF86Launch1",
-        description: Some("WiFi"),
-    ): Spawn("gnome-control-center wifi"),
-
     (
         modifiers: [
             Alt,
@@ -63,6 +70,14 @@
     (
         modifiers: [
             Ctrl,
+        ],
+        key: "space",
+        description: Some("Handy Speech to Text"),
+    ): Spawn("/home/sticks/.local/bin/handy --toggle-transcription"),
+
+    (
+        modifiers: [
+            Ctrl,
             Alt,
         ],
         key: "BackSpace",
@@ -89,51 +104,6 @@
 
     (
         modifiers: [
-            Ctrl,
-            Alt,
-        ],
-        key: "b",
-        description: Some("Beeper"),
-    ): Spawn("AppImageLauncher /home/sticks/Applications/Beeper-4.0.747.AppImage"),
-
-    (
-        modifiers: [
-            Ctrl,
-            Alt,
-        ],
-        key: "d",
-        description: Some("Digikam"),
-    ): Spawn("flatpak run org.kde.digikam"),
-
-    (
-        modifiers: [
-            Ctrl,
-            Alt,
-        ],
-        key: "g",
-        description: Some("Glances"),
-    ): Spawn("gnome-terminal -x glances"),
-
-    (
-        modifiers: [
-            Ctrl,
-            Alt,
-        ],
-        key: "o",
-        description: Some("OpenRGB"),
-    ): Spawn("flatpak run org.openrgb.OpenRGB"),
-
-    (
-        modifiers: [
-            Ctrl,
-            Alt,
-        ],
-        key: "p",
-        description: Some("polychromatic-tray-applet"),
-    ): Spawn("/usr/bin/polychromatic-tray-applet"),
-
-    (
-        modifiers: [
             Super,
         ],
         key: "F10",
@@ -146,7 +116,7 @@
         ],
         key: "F2",
         description: Some("VimWiki"),
-    ): Spawn("gnome-terminal -- zsh -l -c "nvim"),
+    ): Spawn("gnome-terminal -- zsh -l -c \"nvim\""),
 
     (
         modifiers: [
@@ -222,15 +192,6 @@
             Super,
             Alt,
         ],
-        key: "h",
-        description: Some("Hypnotix"),
-    ): Spawn("/usr/bin/hypnotix"),
-
-    (
-        modifiers: [
-            Super,
-            Alt,
-        ],
         key: "i",
         description: Some("Instagram"),
     ): Spawn("xdg-open https://www.instagram.com"),
@@ -267,15 +228,6 @@
             Super,
             Alt,
         ],
-        key: "n",
-        description: Some("toggle_nerd_dict"),
-    ): Spawn("/home/sticks/bin/nerddict"),
-
-    (
-        modifiers: [
-            Super,
-            Alt,
-        ],
         key: "o",
         description: Some("OBS-Studio"),
     ): Spawn("flatpak run com.obsproject.Studio"),
@@ -304,7 +256,7 @@
             Alt,
         ],
         key: "w",
-        description: Some("Warp"),
+        description: Some("Warp Terminal"),
     ): Spawn("warp-terminal"),
 
     (
@@ -332,7 +284,7 @@
         ],
         key: "b",
         description: Some("Bpytop"),
-    ): Spawn("gnome-terminal -- bash -c "bpytop"),
+    ): Spawn("gnome-terminal -- bash -c \"bpytop\""),
 
     (
         modifiers: [
@@ -377,7 +329,7 @@
         ],
         key: "s",
         description: Some("Steam"),
-    ): Spawn("flatpak run com.valvesoftware.Steam"),
+    ): Spawn("steam"),
 
     (
         modifiers: [
@@ -386,7 +338,7 @@
         ],
         key: "w",
         description: Some("War Thunder"),
-    ): Spawn("flatpak run com.valvesoftware.Steam steam://rungameid/236390"),
+    ): Spawn("steam steam://rungameid/236390"),
 
     (
         modifiers: [
@@ -439,9 +391,5 @@
     // DUPLICATE IN GNOME: Super + Alt + r (Redbubble)
     // Already bound to 'Redbubble' -> xdg-open https://www.redbubble.com/portfolio/manage_works?ref=account-nav-dropdown
     // (modifiers: [Super, Alt], key: "r", description: Some("Redbubble")): Spawn("xdg-open https://www.redbubble.com/portfolio/manage_works?ref=account-nav-dropdown"),
-
-    // DUPLICATE IN GNOME: Super + Alt + w (Workspace)
-    // Already bound to 'Warp' -> warp-terminal
-    // (modifiers: [Super, Alt], key: "w", description: Some("Workspace")): Spawn("/usr/bin/bash /home/sticks/bin/workurls"),
 
 }

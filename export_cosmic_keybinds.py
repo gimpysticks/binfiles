@@ -27,8 +27,14 @@ REF_MD_FILE = os.path.join(BIN_DIR, "keybindings_reference.md")
 COSMIC_CONFIG_DIR = os.path.expanduser("~/.config/cosmic/com.system76.CosmicSettings.Shortcuts/v1")
 COSMIC_CUSTOM_FILE = os.path.join(COSMIC_CONFIG_DIR, "custom")
 
+def strip_outer_quotes(s):
+    s = s.strip()
+    if len(s) >= 2 and ((s[0] == "'" and s[-1] == "'") or (s[0] == '"' and s[-1] == '"')):
+        return s[1:-1]
+    return s
+
 def parse_binding(b_str):
-    raw = b_str.strip("'\"")
+    raw = strip_outer_quotes(b_str)
     raw_mods = re.findall(r"<([^>]+)>", raw)
     mod_map = {
         "Alt": "Alt",
@@ -67,9 +73,9 @@ def main():
 
     entries = []
     for sec in cfg.sections():
-        b = cfg.get(sec, "binding", fallback="").strip("'\"")
-        c = cfg.get(sec, "command", fallback="").strip("'\"")
-        n = cfg.get(sec, "name", fallback="").strip("'\"")
+        b = strip_outer_quotes(cfg.get(sec, "binding", fallback=""))
+        c = strip_outer_quotes(cfg.get(sec, "command", fallback=""))
+        n = strip_outer_quotes(cfg.get(sec, "name", fallback=""))
         if not (b and c):
             continue
         mods, key = parse_binding(b)
@@ -112,15 +118,18 @@ def main():
 
         mods_inline = f"[{', '.join(e['mods'])}]"
 
+        escaped_cmd = e['command'].replace('\\', '\\\\').replace('"', '\\"')
+        escaped_name = e['name'].replace('\\', '\\\\').replace('"', '\\"')
+
         # Check if conflicts with COSMIC default
         if combo_tuple in cosmic_reserved:
             status = "Preserved COSMIC Default"
             note = f"Not overwritten. Reserved by {cosmic_reserved[combo_tuple]}."
             commented_blocks.append(
                 f"    // PRESERVED COSMIC DEFAULT: {human_combo}\n"
-                f"    // In GNOME: \"{e['command']}\" ({e['name']})\n"
+                f"    // In GNOME: \"{escaped_cmd}\" ({e['name']})\n"
                 f"    // Preserving COSMIC built-in {cosmic_reserved[combo_tuple]}.\n"
-                f"    // (modifiers: {mods_inline}, key: \"{e['key']}\", description: Some(\"{e['name']}\")): Spawn(\"{e['command']}\"),\n"
+                f"    // (modifiers: {mods_inline}, key: \"{e['key']}\", description: Some(\"{escaped_name}\")): Spawn(\"{escaped_cmd}\"),\n"
             )
         # Check duplicate in GNOME
         elif combo_tuple in seen_combos:
@@ -130,7 +139,7 @@ def main():
             commented_blocks.append(
                 f"    // DUPLICATE IN GNOME: {human_combo} ({e['name']})\n"
                 f"    // Already bound to '{orig['name']}' -> {orig['command']}\n"
-                f"    // (modifiers: {mods_inline}, key: \"{e['key']}\", description: Some(\"{e['name']}\")): Spawn(\"{e['command']}\"),\n"
+                f"    // (modifiers: {mods_inline}, key: \"{e['key']}\", description: Some(\"{escaped_name}\")): Spawn(\"{escaped_cmd}\"),\n"
             )
         else:
             seen_combos[combo_tuple] = e
@@ -140,8 +149,8 @@ def main():
                 f"    (\n"
                 f"        modifiers: {mods_block},\n"
                 f"        key: \"{e['key']}\",\n"
-                f"        description: Some(\"{e['name']}\"),\n"
-                f"    ): Spawn(\"{e['command']}\"),\n"
+                f"        description: Some(\"{escaped_name}\"),\n"
+                f"    ): Spawn(\"{escaped_cmd}\"),\n"
             )
 
         table_rows.append({

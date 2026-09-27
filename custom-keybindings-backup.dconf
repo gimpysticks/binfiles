@@ -96,7 +96,7 @@ name='Variety Next'
 [custom26]
 binding='<Alt><Super>w'
 command='warp-terminal'
-name='Warp'
+name='Warp Terminal'
 
 [custom27]
 binding='<Super>e'
@@ -158,10 +158,6 @@ binding='<Primary><Super>c'
 command='flatpak run org.gnome.Connections'
 name='Connections'
 
-[custom38]
-binding='<Alt><Super>w'
-command='/usr/bin/bash /home/sticks/bin/workurls'
-name='Workspace'
 
 [custom39]
 binding='<Alt><Super>f'
@@ -257,3 +253,8 @@ name='ChatGpt'
 binding='<Shift><Alt>s'
 command='xdg-open https://app.standardnotes.com/'
 name='Standard Notes'
+
+[custom52]
+binding='<Primary>space'
+command='/home/sticks/.local/bin/handy --toggle-transcription'
+name='Handy Speech to Text'
