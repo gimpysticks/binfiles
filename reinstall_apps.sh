@@ -1,0 +1,1 @@
+/home/sticks/bin/reinstall_prep_20260926_134539/reinstall_apps.sh

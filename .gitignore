@@ -8,3 +8,6 @@ __pycache__/
 tempfile
 /os
 .env
+
+# reinstall prep run logs (transient output, not source)
+reinstall_prep_*/reinstall_*.log

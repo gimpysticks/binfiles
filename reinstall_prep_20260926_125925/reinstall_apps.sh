@@ -2,7 +2,7 @@
 # Multi-source reinstall script generated on 2026-09-26 12:59:26
 set -e
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 LOG_FILE="$SCRIPT_DIR/reinstall_$(date +%Y%m%d_%H%M%S).log"
 
 log() {
@@ -11,16 +11,32 @@ log() {
 
 log "=== Reinstall started at $(date) ==="
 
+# Prevent interactive prompts from blocking automated installs
+export DEBIAN_FRONTEND=noninteractive
+export NEEDRESTART_MODE=a
+
 # 1. APT Packages (Manual)
 if [ -f "$SCRIPT_DIR/apt_manual_packages.txt" ]; then
     log "\n=== Installing APT Manual Packages ==="
     while IFS= read -r pkg || [ -n "$pkg" ]; do
         [ -z "$pkg" ] && continue
+
+        # Exclude GNOME, GNOME Shell, GDM, and Mutter packages (prevents conflicts & hangs on COSMIC)
+        case "$pkg" in
+            *gnome*|*gnome-shell*|*gdm*|*mutter*)
+                log "SKIP: $pkg (excluded GNOME / GNOME Shell component)"
+                continue
+                ;;
+        esac
+
         if dpkg -l | grep -q "^ii  $pkg "; then
             log "SKIP: $pkg (already installed)"
         else
             log "INSTALL: $pkg"
-            sudo apt-get install -y "$pkg" >> "$LOG_FILE" 2>&1 || log "FAILED: $pkg"
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+                -o Dpkg::Options::="--force-confdef" \
+                -o Dpkg::Options::="--force-confold" \
+                "$pkg" >> "$LOG_FILE" 2>&1 || log "FAILED: $pkg"
         fi
     done < "$SCRIPT_DIR/apt_manual_packages.txt"
 fi
@@ -45,6 +61,14 @@ if [ -f "$SCRIPT_DIR/snap_apps_list.txt" ] && command -v snap >/dev/null 2>&1; t
     while IFS= read -r snap || [ -n "$snap" ]; do
         [ -z "$snap" ] && continue
         [ "$snap" = "snapd" ] && continue
+
+        # Exclude GNOME runtime snap packages
+        case "$snap" in
+            *gnome*)
+                log "SKIP: $snap (excluded GNOME component)"
+                continue
+                ;;
+        esac
         if snap list 2>/dev/null | grep -q "^$snap "; then
             log "SKIP: $snap (already installed)"
         else
