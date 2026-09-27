@@ -158,6 +158,10 @@ binding='<Primary><Super>c'
 command='flatpak run org.gnome.Connections'
 name='Connections'
 
+[custom38]
+binding='<Alt><Super>w'
+command='/usr/bin/bash /home/sticks/bin/workurls'
+name='Workspace'
 
 [custom39]
 binding='<Alt><Super>f'
@@ -234,6 +238,11 @@ binding='<Alt><Super>e'
 command='xdg-open https://elevenlabs.io/app/home'
 name='Eleven Labs'
 
+[custom52]
+binding='<Primary>space'
+command='/home/sticks/.local/bin/handy --toggle-transcription'
+name='Handy Speech to Text'
+
 [custom6]
 binding='<Super>t'
 command='x-terminal-emulator'
@@ -253,8 +262,3 @@ name='ChatGpt'
 binding='<Shift><Alt>s'
 command='xdg-open https://app.standardnotes.com/'
 name='Standard Notes'
-
-[custom52]
-binding='<Primary>space'
-command='/home/sticks/.local/bin/handy --toggle-transcription'
-name='Handy Speech to Text'

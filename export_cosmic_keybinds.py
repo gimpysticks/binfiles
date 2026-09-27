@@ -2,243 +2,176 @@
 """
 export_cosmic_keybinds.py
 
-Generates Pop!_OS COSMIC desktop custom keybindings from GNOME dconf keybindings.
-- Preserves Pop!_OS COSMIC default keybindings (e.g. Super+t for cosmic-term, tiling, etc.)
-- Creates a backup copy of current keybindings for reference
-- Outputs:
-    1. ~/.config/cosmic/com.system76.CosmicSettings.Shortcuts/v1/custom (Active COSMIC config)
-    2. ~/bin/cosmic-custom-keybindings.ron (Repository copy)
-    3. ~/bin/keybindings_reference.md (Human-readable Markdown reference table)
-    4. ~/bin/custom-keybindings-backup.dconf (Dconf backup copy)
+Synchronizes active Pop!_OS COSMIC keybindings to the repository:
+1. Validates the live ~/.config/cosmic/com.system76.CosmicSettings.Shortcuts/v1/custom RON file.
+2. Backs it up to ~/bin/cosmic-custom-keybindings.ron.
+3. Maintains the ~/bin/keybindings.ron symlink.
+4. Generates an up-to-date human-readable reference table in ~/bin/keybindings_reference.md.
 """
 
 import os
+import sys
 import re
 import shutil
-import configparser
 from datetime import datetime
 
 BIN_DIR = os.path.dirname(os.path.abspath(__file__))
-DCONF_FILE = os.path.join(BIN_DIR, "custom-keybindings.dconf")
-BACKUP_DCONF_FILE = os.path.join(BIN_DIR, "custom-keybindings-backup.dconf")
+LIVE_COSMIC_DIR = os.path.expanduser("~/.config/cosmic/com.system76.CosmicSettings.Shortcuts/v1")
+LIVE_CUSTOM_FILE = os.path.join(LIVE_COSMIC_DIR, "custom")
+
 BIN_RON_FILE = os.path.join(BIN_DIR, "cosmic-custom-keybindings.ron")
+BIN_SYMLINK = os.path.join(BIN_DIR, "keybindings.ron")
 REF_MD_FILE = os.path.join(BIN_DIR, "keybindings_reference.md")
 
-COSMIC_CONFIG_DIR = os.path.expanduser("~/.config/cosmic/com.system76.CosmicSettings.Shortcuts/v1")
-COSMIC_CUSTOM_FILE = os.path.join(COSMIC_CONFIG_DIR, "custom")
 
-def strip_outer_quotes(s):
-    s = s.strip()
-    if len(s) >= 2 and ((s[0] == "'" and s[-1] == "'") or (s[0] == '"' and s[-1] == '"')):
-        return s[1:-1]
-    return s
+def validate_ron_content(content):
+    """Ensure RON syntax is balanced and all Spawn actions parse correctly."""
+    if not content.strip():
+        return False, "File is empty."
 
-def parse_binding(b_str):
-    raw = strip_outer_quotes(b_str)
-    raw_mods = re.findall(r"<([^>]+)>", raw)
-    mod_map = {
-        "Alt": "Alt",
-        "Super": "Super",
-        "Primary": "Ctrl",
-        "Ctrl": "Ctrl",
-        "Control": "Ctrl",
-        "Shift": "Shift"
-    }
-    mods = []
-    for m in raw_mods:
-        if m in mod_map and mod_map[m] not in mods:
-            mods.append(mod_map[m])
-    
-    # Conventional modifier ordering: Super, Ctrl, Alt, Shift
-    order = {"Super": 1, "Ctrl": 2, "Alt": 3, "Shift": 4}
-    mods.sort(key=lambda m: order.get(m, 5))
-    
-    key = re.sub(r"<[^>]+>", "", raw)
-    if key == "Launch1":
-        key = "XF86Launch1"
-    return mods, key
+    if content.count("{") != content.count("}"):
+        return False, "Mismatched curly braces '{' and '}' in RON file."
 
-def main():
-    if not os.path.isfile(DCONF_FILE):
-        print(f"Error: {DCONF_FILE} not found!")
-        return
+    pattern = re.compile(
+        r"\(\s*modifiers:\s*\[(.*?)\]\s*,\s*key:\s*\"((?:[^\"\\]|\\.)*)\"\s*,\s*description:\s*(?:Some\(\"((?:[^\"\\]|\\.)*)\"\)|None)\s*,\s*\):\s*Spawn\(\"((?:[^\"\\]|\\.)*)\"\)",
+        re.DOTALL,
+    )
+    matches = pattern.findall(content)
+    spawns = re.findall(r"Spawn\(", content)
 
-    # 1. Backup original dconf
-    shutil.copy2(DCONF_FILE, BACKUP_DCONF_FILE)
-    print(f"✓ Backed up current dconf keybindings to: {BACKUP_DCONF_FILE}")
+    if len(matches) != len(spawns):
+        return False, f"Mismatch: found {len(spawns)} 'Spawn(' entries but only parsed {len(matches)} valid shortcut blocks."
 
-    # 2. Parse dconf entries
-    cfg = configparser.ConfigParser()
-    cfg.read(DCONF_FILE)
+    return True, matches
 
-    entries = []
-    for sec in cfg.sections():
-        b = strip_outer_quotes(cfg.get(sec, "binding", fallback=""))
-        c = strip_outer_quotes(cfg.get(sec, "command", fallback=""))
-        n = strip_outer_quotes(cfg.get(sec, "name", fallback=""))
-        if not (b and c):
-            continue
-        mods, key = parse_binding(b)
-        entries.append({
-            "section": sec,
-            "name": n,
-            "raw_binding": b,
-            "command": c,
-            "mods": mods,
-            "key": key
-        })
 
-    # Sort entries nicely
-    entries.sort(key=lambda x: (x["mods"], x["key"], x["name"]))
+def extract_existing_notes(md_file):
+    """Extract existing notes from keybindings_reference.md table to preserve annotations."""
+    notes = {}
+    if not os.path.isfile(md_file):
+        return notes
 
-    # 3. Categorize into active vs preserved/duplicates
-    seen_combos = {}
-    active_blocks = []
-    commented_blocks = []
-    table_rows = []
+    try:
+        with open(md_file, "r", encoding="utf-8") as f:
+            for line in f:
+                if line.startswith("| `") and "|" in line:
+                    parts = [p.strip() for p in line.split("|")[1:-1]]
+                    if len(parts) >= 4:
+                        combo = parts[0].strip("` ")
+                        name = parts[1]
+                        note = parts[3]
+                        if note:
+                            notes[(combo, name)] = note
+    except Exception:
+        pass
+    return notes
 
-    # Known Pop!_OS COSMIC defaults to preserve
-    # Super+t = Terminal (cosmic-term), Super+/ = Launcher, Super+f = Files, Super+b = Browser, etc.
-    cosmic_reserved = {
-        ( ("Super",), "t" ): "Pop!_OS COSMIC default terminal (cosmic-term)",
-        ( ("Super",), "b" ): "Pop!_OS COSMIC default web browser",
-        ( ("Super",), "f" ): "Pop!_OS COSMIC default file manager (cosmic-files)",
-        ( ("Super",), "slash" ): "Pop!_OS COSMIC launcher",
-    }
 
-    for e in entries:
-        combo_tuple = (tuple(e["mods"]), e["key"])
-        human_combo = (" + ".join(e["mods"]) + (" + " if e["mods"] else "") + e["key"]).replace("XF86Launch1", "Launch1")
+def sync_from_cosmic():
+    if not os.path.isfile(LIVE_CUSTOM_FILE):
+        print(f"Error: Live COSMIC shortcuts file not found at: {LIVE_CUSTOM_FILE}")
+        sys.exit(1)
 
-        mods_str = "\n".join([f"            {m}," for m in e["mods"]])
-        mods_block = f"[\n{mods_str}\n        ]" if mods_str else "[]"
+    with open(LIVE_CUSTOM_FILE, "r", encoding="utf-8") as f:
+        live_content = f.read()
 
-        status = ""
-        note = ""
+    valid, result = validate_ron_content(live_content)
+    if not valid:
+        print(f"Error: Live COSMIC keybindings failed validation: {result}")
+        sys.exit(1)
 
-        mods_inline = f"[{', '.join(e['mods'])}]"
+    matches = result
+    print(f"✓ Validated live COSMIC shortcuts ({len(matches)} entries parsed).")
 
-        escaped_cmd = e['command'].replace('\\', '\\\\').replace('"', '\\"')
-        escaped_name = e['name'].replace('\\', '\\\\').replace('"', '\\"')
-
-        # Check if conflicts with COSMIC default
-        if combo_tuple in cosmic_reserved:
-            status = "Preserved COSMIC Default"
-            note = f"Not overwritten. Reserved by {cosmic_reserved[combo_tuple]}."
-            commented_blocks.append(
-                f"    // PRESERVED COSMIC DEFAULT: {human_combo}\n"
-                f"    // In GNOME: \"{escaped_cmd}\" ({e['name']})\n"
-                f"    // Preserving COSMIC built-in {cosmic_reserved[combo_tuple]}.\n"
-                f"    // (modifiers: {mods_inline}, key: \"{e['key']}\", description: Some(\"{escaped_name}\")): Spawn(\"{escaped_cmd}\"),\n"
-            )
-        # Check duplicate in GNOME
-        elif combo_tuple in seen_combos:
-            orig = seen_combos[combo_tuple]
-            status = "Duplicate in GNOME"
-            note = f"Duplicate key combo. Active: '{orig['name']}'. Commented in RON."
-            commented_blocks.append(
-                f"    // DUPLICATE IN GNOME: {human_combo} ({e['name']})\n"
-                f"    // Already bound to '{orig['name']}' -> {orig['command']}\n"
-                f"    // (modifiers: {mods_inline}, key: \"{e['key']}\", description: Some(\"{escaped_name}\")): Spawn(\"{escaped_cmd}\"),\n"
-            )
-        else:
-            seen_combos[combo_tuple] = e
-            status = "Active in COSMIC"
-            note = "Exported to COSMIC custom shortcuts"
-            active_blocks.append(
-                f"    (\n"
-                f"        modifiers: {mods_block},\n"
-                f"        key: \"{e['key']}\",\n"
-                f"        description: Some(\"{escaped_name}\"),\n"
-                f"    ): Spawn(\"{escaped_cmd}\"),\n"
-            )
-
-        table_rows.append({
-            "combo": human_combo,
-            "raw": e["raw_binding"],
-            "name": e["name"],
-            "command": e["command"],
-            "status": status,
-            "note": note,
-            "section": e["section"]
-        })
-
-    # 4. Generate RON File Content
-    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    ron_content = f"""// =============================================================================
-// Pop!_OS COSMIC Custom Keybindings (RON Format)
-// Generated: {now_str}
-// Source: {DCONF_FILE}
-//
-// File Location: ~/.config/cosmic/com.system76.CosmicSettings.Shortcuts/v1/custom
-// Repository Copy: {BIN_RON_FILE}
-// Markdown Reference: {REF_MD_FILE}
-//
-// NOTE:
-// Pop!_OS COSMIC default keybindings (e.g. Super+t for cosmic-term,
-// Super+f for cosmic-files, workspace switching, tiling) are preserved
-// and NOT overwritten.
-// =============================================================================
-
-{{
-"""
-    for b in active_blocks:
-        ron_content += b + "\n"
-
-    if commented_blocks:
-        ron_content += """    // =========================================================================
-    // INACTIVE / PRESERVED ENTRIES (Left for Reference)
-    // =========================================================================\n\n"""
-        for b in commented_blocks:
-            ron_content += b + "\n"
-
-    ron_content += "}\n"
-
-    # Write to ~/.config/cosmic/com.system76.CosmicSettings.Shortcuts/v1/custom
-    os.makedirs(COSMIC_CONFIG_DIR, exist_ok=True)
-    with open(COSMIC_CUSTOM_FILE, "w", encoding="utf-8") as f:
-        f.write(ron_content)
-    print(f"✓ Saved active Pop!_OS COSMIC shortcuts: {COSMIC_CUSTOM_FILE}")
-
-    # Write copy to repository bin folder
+    # 1. Write exact live content to ~/bin/cosmic-custom-keybindings.ron
     with open(BIN_RON_FILE, "w", encoding="utf-8") as f:
-        f.write(ron_content)
-    print(f"✓ Saved repository copy: {BIN_RON_FILE}")
+        f.write(live_content)
+    print(f"✓ Backed up to repository: {BIN_RON_FILE}")
 
-    # 5. Generate Markdown Reference Table
-    md_content = f"""# Pop!_OS Custom Keybindings Reference
+    # 3. Create or update symlink ~/bin/keybindings.ron
+    try:
+        if os.path.islink(BIN_SYMLINK) or os.path.isfile(BIN_SYMLINK):
+            os.remove(BIN_SYMLINK)
+        os.symlink("cosmic-custom-keybindings.ron", BIN_SYMLINK)
+        print(f"✓ Updated symlink: {BIN_SYMLINK} -> cosmic-custom-keybindings.ron")
+    except Exception as e:
+        print(f"Note: Could not create symlink {BIN_SYMLINK}: {e}")
 
-Generated: `{now_str}`  
-Source: [`custom-keybindings.dconf`](custom-keybindings.dconf)  
-Backup Dconf: [`custom-keybindings-backup.dconf`](custom-keybindings-backup.dconf)  
-COSMIC RON Config: [`cosmic-custom-keybindings.ron`](cosmic-custom-keybindings.ron)  
-Live COSMIC Path: `~/.config/cosmic/com.system76.CosmicSettings.Shortcuts/v1/custom`  
+    # 4. Generate/update Markdown reference
+    update_markdown_reference(matches)
 
----
 
-## Overview
+def update_markdown_reference(matches):
+    existing_notes = extract_existing_notes(REF_MD_FILE)
 
-- **Total Keybindings in GNOME**: {len(entries)}
-- **Active in Pop!_OS COSMIC**: {len(active_blocks)}
-- **Preserved COSMIC Defaults**: {sum(1 for r in table_rows if r['status'] == 'Preserved COSMIC Default')}
-- **Duplicates Handled**: {sum(1 for r in table_rows if r['status'] == 'Duplicate in GNOME')}
+    special_notes = {
+        ("F12", "Tildaz"): "Replaces Guake; toggles TildaZ drop-down terminal",
+        ("Super + Ctrl + g", "agy"): "Launch Antigravity CLI in cosmic-term",
+    }
+    for k, v in special_notes.items():
+        if k not in existing_notes:
+            existing_notes[k] = v
 
----
+    order = {"Super": 1, "Ctrl": 2, "Alt": 3, "Shift": 4}
+    entries = []
 
-## Keybindings Table
+    for raw_mods, key, name, cmd in matches:
+        mods = [x.strip() for x in raw_mods.split(",") if x.strip()]
+        mods.sort(key=lambda m: order.get(m, 5))
+        combo = (" + ".join(mods) + (" + " if mods else "") + key)
+        note = existing_notes.get((combo, name), "")
+        cmd_display = cmd.replace('\\"', '"')
+        entries.append((mods, key, name, cmd_display, combo, note))
 
-| Key Combination | Name | Command | COSMIC Status | Notes |
-| :--- | :--- | :--- | :--- | :--- |
-"""
+    entries.sort(key=lambda x: ([order.get(m, 5) for m in x[0]], len(x[0]), x[1].lower(), x[2]))
 
-    for r in table_rows:
-        badge = "🟢 **Active**" if r["status"] == "Active in COSMIC" else ("🔵 **Preserved**" if r["status"] == "Preserved COSMIC Default" else "🟡 **Duplicate**")
-        md_content += f"| `{r['combo']}` | {r['name']} | `{r['command']}` | {badge} | {r['note']} |\n"
+    table_lines = [
+        "| Key Combination | Name | Command | Notes |",
+        "| :--- | :--- | :--- | :--- |",
+    ]
+    for e in entries:
+        table_lines.append(f"| `{e[4]}` | {e[2]} | `{e[3]}` | {e[5]} |")
+    table_block = "\n".join(table_lines)
 
-    md_content += """
----
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
 
-## Pop!_OS COSMIC Default Keybindings Cheatsheet
+    # Read existing sections if available
+    tildaz_section = """## TildaZ Migration (2026-09-27)
+
+Guake has been fully uninstalled and replaced by TildaZ as the drop-down terminal:
+
+- Guake processes killed, its autostart entries removed (`~/.config/autostart/guake.desktop` and `.disabled`), and the package removed via `pkexec apt remove -y guake`.
+- TildaZ was already installed at `/home/sticks/.local/opt/tildaz/tildaz`, with autostart enabled (`~/.config/autostart/tildaz.desktop`, `X-GNOME-Autostart-enabled=true`) and its own config at `~/.config/tildaz/config_0.toml`.
+- TildaZ is bound to `F12` in COSMIC (`/home/sticks/.local/opt/tildaz/tildaz --toggle 0`)."""
+
+    removed_section = """## Removed Keybindings
+
+### Removed - application not installed
+| Former Binding | App | Evidence |
+| :--- | :--- | :--- |
+| `Launch1` | WiFi (`gnome-control-center wifi`) | `gnome-control-center` not on PATH; Pop!_OS 24.04/COSMIC uses `cosmic-settings` |
+| `Ctrl + Alt + b` | Beeper AppImage | `Beeper-4.0.747.AppImage` file no longer exists |
+| `Ctrl + Alt + g` | Glances | `glances` not on PATH, not in dpkg |
+| `Ctrl + Alt + o` | OpenRGB (flatpak) | `org.openrgb.OpenRGB` not in `flatpak list` |
+| `Ctrl + Alt + p` | polychromatic-tray-applet | binary not on PATH, not in dpkg |
+| `Super + Alt + h` | Hypnotix | binary not on PATH, not in dpkg |
+| `Super + Alt + n` | toggle_nerd_dict | `nerddict` wrapper exists but calls `nerd-dictation`, which is not installed |
+
+### Removed - explicitly requested (both were actually installed)
+| Former Binding | App | Installed evidence |
+| :--- | :--- | :--- |
+| `F12` | Guake | was `install ok installed` via dpkg and running; package fully uninstalled 2026-09-27, replaced by TildaZ |
+| `Ctrl + Alt + d` | Digikam | installed via flatpak (`org.kde.digikam` 9.1.0); removed per explicit user request |"""
+
+    incident_section = """## Incident Notes (2026-09-27)
+
+The live COSMIC file (`~/.config/cosmic/com.system76.CosmicSettings.Shortcuts/v1/custom`) had diverged from this repository and become corrupted: a truncated `F12` entry made the entire RON document fail to parse, which silently disabled all custom shortcuts. The file was repaired directly and re-synced.
+
+Backups of the corrupted live file are kept at:
+- `custom-live-CORRUPTED-backup-20260927-100423.ron` (this repo)
+- `~/.config/cosmic/com.system76.CosmicSettings.Shortcuts/v1/custom.corrupted-backup-20260927-100423` (live config directory)"""
+
+    cheatsheet_section = """## Pop!_OS COSMIC Default Keybindings Cheatsheet
 
 For your reference, Pop!_OS COSMIC includes these built-in system shortcuts that were left untouched:
 
@@ -262,14 +195,61 @@ For your reference, Pop!_OS COSMIC includes these built-in system shortcuts that
 | `Super + Ctrl + Left/Right/Up/Down` | Navigate Workspaces |
 | `Super + Alt + Left/Right/Up/Down` | Switch Output Monitor Display |
 | `Alt + Tab` | Window Switcher |
-| `Print` | Interactive Screenshot |
+| `Print` | Interactive Screenshot |"""
+
+    md_content = f"""# Pop!_OS Custom Keybindings Reference
+
+Last synced: `{now_str}`
+Live COSMIC Path: `~/.config/cosmic/com.system76.CosmicSettings.Shortcuts/v1/custom`  
+Repository Copy: [`cosmic-custom-keybindings.ron`](cosmic-custom-keybindings.ron)  
+Symlink: [`keybindings.ron`](keybindings.ron)  
+
+---
+
+## Overview
+
+- **Active in Pop!_OS COSMIC**: {len(entries)}
+- **Removed - app not installed**: 7
+- **Removed - explicitly requested**: 2 (Guake, Digikam)
+- **Preserved COSMIC Defaults**: 1
+
+---
+
+{tildaz_section}
+
+---
+
+## Active Keybindings Table
+
+{table_block}
+
+---
+
+{removed_section}
+
+---
+
+{incident_section}
+
+---
+
+{cheatsheet_section}
 """
 
     with open(REF_MD_FILE, "w", encoding="utf-8") as f:
         f.write(md_content)
-    print(f"✓ Saved Markdown reference guide: {REF_MD_FILE}")
+    print(f"✓ Updated Markdown reference: {REF_MD_FILE}")
 
-    print("\n✨ Done! Keybindings successfully converted and documented for Pop!_OS COSMIC.")
+
+def main():
+    if "--help" in sys.argv or "-h" in sys.argv:
+        print("Usage: export_cosmic_keybinds.py")
+        print("Syncs active Pop!_OS COSMIC keybindings to ~/bin/cosmic-custom-keybindings.ron and keybindings_reference.md")
+        return
+
+    sync_from_cosmic()
+    print("✨ Pop!_OS COSMIC keybindings successfully synced.")
+
 
 if __name__ == "__main__":
     main()
