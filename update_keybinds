@@ -7,7 +7,6 @@ set -e
 # 1. Validates and copies ~/.config/cosmic/com.system76.CosmicSettings.Shortcuts/v1/custom
 #    to /home/sticks/bin/cosmic-custom-keybindings.ron (and keybindings.ron symlink).
 # 2. Automatically updates /home/sticks/bin/keybindings_reference.md with a sorted table.
-# 3. Saves a legacy GNOME dconf backup to custom-keybindings.dconf if dconf is available.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -18,12 +17,6 @@ if [ -x "$SCRIPT_DIR/export_cosmic_keybinds.py" ]; then
 else
     echo "Error: $SCRIPT_DIR/export_cosmic_keybinds.py not found or not executable." >&2
     exit 1
-fi
-
-# Optional legacy GNOME dconf dump for archival
-if command -v dconf >/dev/null 2>&1; then
-    echo "Saving legacy GNOME dconf backup..."
-    dconf dump /org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/ > "$SCRIPT_DIR/custom-keybindings.dconf" 2>/dev/null || true
 fi
 
 echo "=== Keybindings backup complete ==="
