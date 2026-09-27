@@ -1,22 +1,383 @@
-#!/bin/sh
+#!/usr/bin/env python3
+"""
+chgbrowser - Switch and cycle the default web browser for Pop!_OS COSMIC Desktop & FreeDesktop.
 
-currbrows=$(xdg-settings get default-web-browser)
-case $currbrows in
-	firefox.desktop)
-		xdg-settings set default-web-browser com.google.Chrome.desktop
-		/usr/bin/notify-send -t 3000 "Google Chrome is now the default browser"
-		echo "Google Chrome set as default browser" ;;
-	com.google.Chrome.desktop)
-		xdg-settings set default-web-browser brave-browser.desktop
-		/usr/bin/notify-send -t 3000 "Brave is now the default browser"
-		echo "Brave set as default browser" ;;
-	brave-browser.desktop)
-		xdg-settings set default-web-browser firefox.desktop
-		/usr/bin/notify-send -t 3000 "Firefox is now the default browser"
-		echo "Firefox set as default browser" ;;
-	*)
-		# Fallback: if current browser is neither, set to Firefox
-		xdg-settings set default-web-browser firefox.desktop
-		/usr/bin/notify-send -t 3000 "Firefox is now the default browser"
-		echo "Firefox set as default browser (fallback)" ;;
-esac
+Rotation:
+    Firefox -> Google Chrome -> Brave -> Firefox
+
+Updates:
+    1. ~/.config/cosmic-mimeapps.list (Pop!_OS COSMIC priority configuration)
+    2. ~/.config/mimeapps.list (Standard XDG / FreeDesktop configuration)
+
+Synchronizes:
+    - FreeDesktop mime types:
+        text/html, application/xhtml+xml, x-scheme-handler/http,
+        x-scheme-handler/https, x-scheme-handler/chrome,
+        x-scheme-handler/about, x-scheme-handler/unknown
+    - xdg-settings default-web-browser
+    - update-desktop-database
+    - Native COSMIC desktop notification with browser icon
+
+Usage:
+    chgbrowser               # Cycle to the next browser in rotation (for Super+Alt+b shortcut)
+    chgbrowser next          # Same as above
+    chgbrowser firefox       # Explicitly set Firefox as default
+    chgbrowser chrome        # Explicitly set Google Chrome as default
+    chgbrowser brave         # Explicitly set Brave as default
+    chgbrowser status        # Display current default browser
+    chgbrowser --help        # Display usage help
+"""
+
+import argparse
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+
+BROWSER_MIMES = [
+    "text/html",
+    "application/xhtml+xml",
+    "x-scheme-handler/http",
+    "x-scheme-handler/https",
+    "x-scheme-handler/chrome",
+    "x-scheme-handler/about",
+    "x-scheme-handler/unknown",
+]
+
+BROWSERS = [
+    {
+        "id": "firefox",
+        "name": "Firefox",
+        "candidates": ["firefox.desktop", "org.mozilla.firefox.desktop"],
+        "icon": "firefox",
+        "fallback_icon": "firefox",
+        "aliases": ["ff", "firefox", "mozilla"],
+    },
+    {
+        "id": "chrome",
+        "name": "Google Chrome",
+        "candidates": ["com.google.Chrome.desktop", "google-chrome.desktop"],
+        "icon": "com.google.Chrome",
+        "fallback_icon": "google-chrome",
+        "aliases": ["chrome", "google-chrome", "google", "com.google.chrome"],
+    },
+    {
+        "id": "brave",
+        "name": "Brave",
+        "candidates": ["com.brave.Browser.desktop", "brave-browser.desktop"],
+        "icon": "com.brave.Browser",
+        "fallback_icon": "brave-browser",
+        "aliases": ["brave", "brave-browser", "com.brave.browser"],
+    },
+]
+
+ROTATION = ["firefox", "chrome", "brave"]
+
+
+def resolve_desktop_file(candidates: list[str]) -> str:
+    """Find the first matching candidate desktop file installed on the system."""
+    search_dirs = [
+        Path.home() / ".local/share/applications",
+        Path.home() / ".local/share/flatpak/exports/share/applications",
+        Path("/var/lib/flatpak/exports/share/applications"),
+        Path("/usr/local/share/applications"),
+        Path("/usr/share/applications"),
+    ]
+    xdg_data_dirs = os.environ.get("XDG_DATA_DIRS", "")
+    for d in xdg_data_dirs.split(":"):
+        d = d.strip()
+        if d:
+            p = Path(d) / "applications"
+            if p not in search_dirs:
+                search_dirs.append(p)
+
+    for cand in candidates:
+        for s_dir in search_dirs:
+            p = s_dir / cand
+            if p.is_file() or p.is_symlink():
+                return cand
+
+    return candidates[0]
+
+
+def read_default_from_mimeapps(filepath: Path) -> str | None:
+    """Read default browser desktop file from a mimeapps.list file."""
+    if not filepath.exists():
+        return None
+    try:
+        in_defaults = False
+        with open(filepath, "r", encoding="utf-8", errors="replace") as f:
+            for line in f:
+                stripped = line.strip()
+                if stripped.startswith("[") and stripped.endswith("]"):
+                    in_defaults = (stripped == "[Default Applications]")
+                    continue
+                if in_defaults and "=" in stripped and not stripped.startswith("#"):
+                    k, v = stripped.split("=", 1)
+                    k = k.strip()
+                    v = v.strip().split(";")[0]
+                    if k in ("x-scheme-handler/http", "x-scheme-handler/https", "text/html"):
+                        if v:
+                            return v
+    except Exception:
+        pass
+    return None
+
+
+def get_current_desktop() -> str | None:
+    """Detect current default web browser desktop file."""
+    # 1. Pop!_OS COSMIC desktop-specific config (highest priority in COSMIC)
+    cosmic_mime = Path.home() / ".config" / "cosmic-mimeapps.list"
+    app = read_default_from_mimeapps(cosmic_mime)
+    if app:
+        return app
+
+    # 2. Standard XDG mimeapps.list
+    std_mime = Path.home() / ".config" / "mimeapps.list"
+    app = read_default_from_mimeapps(std_mime)
+    if app:
+        return app
+
+    # 3. Fallback: xdg-settings
+    try:
+        res = subprocess.run(
+            ["xdg-settings", "get", "default-web-browser"],
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+        if res.returncode == 0 and res.stdout.strip():
+            return res.stdout.strip()
+    except Exception:
+        pass
+
+    # 4. Fallback: xdg-mime
+    try:
+        res = subprocess.run(
+            ["xdg-mime", "query", "default", "x-scheme-handler/http"],
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+        if res.returncode == 0 and res.stdout.strip():
+            return res.stdout.strip()
+    except Exception:
+        pass
+
+    return None
+
+
+def identify_browser(desktop_name: str | None) -> str | None:
+    """Map a desktop file name to a supported browser ID."""
+    if not desktop_name:
+        return None
+    lower = desktop_name.lower()
+    for b in BROWSERS:
+        for alias in b["aliases"]:
+            if alias in lower:
+                return b["id"]
+        for cand in b["candidates"]:
+            if cand.lower() == lower:
+                return b["id"]
+    return None
+
+
+def get_next_browser(current_id: str | None) -> str:
+    """Determine next browser in rotation."""
+    if current_id in ROTATION:
+        idx = ROTATION.index(current_id)
+        return ROTATION[(idx + 1) % len(ROTATION)]
+    # Fallback to Brave if unknown
+    return "brave"
+
+
+def update_mimeapps_file(filepath: Path, mime_map: dict[str, str]):
+    """
+    Update or insert MIME entries in [Default Applications].
+    Preserves all other sections, entries, and comments.
+    """
+    lines = []
+    if filepath.exists():
+        with open(filepath, "r", encoding="utf-8", errors="replace") as f:
+            lines = f.readlines()
+
+    section_header = "[Default Applications]"
+    in_default_section = False
+    found_default_section = False
+    new_lines = []
+    updated_mimes = set()
+
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("[") and stripped.endswith("]"):
+            if in_default_section:
+                for mime, app in mime_map.items():
+                    if mime not in updated_mimes:
+                        new_lines.append(f"{mime}={app}\n")
+                        updated_mimes.add(mime)
+                in_default_section = False
+
+            if stripped == section_header:
+                in_default_section = True
+                found_default_section = True
+                new_lines.append(line)
+                continue
+
+        if in_default_section:
+            if "=" in stripped and not stripped.startswith("#"):
+                key, _ = stripped.split("=", 1)
+                key = key.strip()
+                if key in mime_map:
+                    new_lines.append(f"{key}={mime_map[key]}\n")
+                    updated_mimes.add(key)
+                    continue
+
+        new_lines.append(line)
+
+    if not found_default_section:
+        if new_lines and not new_lines[-1].endswith("\n"):
+            new_lines[-1] += "\n"
+        if new_lines and new_lines[-1].strip() != "":
+            new_lines.append("\n")
+        new_lines.append(f"{section_header}\n")
+        for mime, app in mime_map.items():
+            new_lines.append(f"{mime}={app}\n")
+    elif in_default_section:
+        for mime, app in mime_map.items():
+            if mime not in updated_mimes:
+                new_lines.append(f"{mime}={app}\n")
+                updated_mimes.add(mime)
+
+    filepath.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = filepath.with_suffix(filepath.suffix + ".tmp")
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        f.writelines(new_lines)
+    tmp_path.replace(filepath)
+
+
+def send_notification(b_info: dict):
+    """Send desktop notification via notify-send."""
+    if not shutil.which("notify-send"):
+        return
+
+    icon = b_info.get("icon", "")
+    cmd = [
+        "notify-send",
+        "-t", "3000",
+        "-a", "COSMIC Settings",
+        "-i", icon,
+        f"{b_info['name']} is now the default browser",
+    ]
+    try:
+        subprocess.run(cmd, check=False, timeout=3)
+    except Exception:
+        pass
+
+
+def set_default_browser(browser_id: str, notify: bool = True, quiet: bool = False):
+    """Set the given browser ID as the system & COSMIC desktop default."""
+    b_info = next((b for b in BROWSERS if b["id"] == browser_id), None)
+    if not b_info:
+        print(f"Error: Unknown browser '{browser_id}'", file=sys.stderr)
+        sys.exit(1)
+
+    desktop_file = resolve_desktop_file(b_info["candidates"])
+    mime_map = {m: desktop_file for m in BROWSER_MIMES}
+
+    # 1. Update ~/.config/cosmic-mimeapps.list (COSMIC Desktop priority)
+    cosmic_mime = Path.home() / ".config" / "cosmic-mimeapps.list"
+    update_mimeapps_file(cosmic_mime, mime_map)
+
+    # 2. Update ~/.config/mimeapps.list (Standard XDG)
+    std_mime = Path.home() / ".config" / "mimeapps.list"
+    update_mimeapps_file(std_mime, mime_map)
+
+    # 3. Synchronize xdg-settings
+    try:
+        subprocess.run(
+            ["xdg-settings", "set", "default-web-browser", desktop_file],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=3,
+        )
+    except Exception:
+        pass
+
+    # 4. Update local desktop database if available
+    try:
+        local_apps = Path.home() / ".local/share/applications"
+        if local_apps.exists() and shutil.which("update-desktop-database"):
+            subprocess.run(
+                ["update-desktop-database", str(local_apps)],
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=3,
+            )
+    except Exception:
+        pass
+
+    # 5. Output confirmation message
+    if not quiet:
+        print(f"{b_info['name']} set as default browser")
+
+    # 6. Notification
+    if notify:
+        send_notification(b_info)
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Switch or cycle default web browser for COSMIC Desktop."
+    )
+    parser.add_argument(
+        "target",
+        nargs="?",
+        default="next",
+        help="Target browser ('firefox', 'chrome', 'brave', 'next', 'status'). Defaults to 'next'.",
+    )
+    parser.add_argument(
+        "-s", "--status",
+        action="store_true",
+        help="Show current default browser.",
+    )
+    parser.add_argument(
+        "-q", "--quiet",
+        action="store_true",
+        help="Suppress console output.",
+    )
+    parser.add_argument(
+        "--no-notify",
+        action="store_true",
+        help="Do not display desktop notification.",
+    )
+
+    args = parser.parse_args()
+
+    current_desktop = get_current_desktop()
+    current_id = identify_browser(current_desktop)
+
+    if args.status or args.target == "status":
+        curr_info = next((b for b in BROWSERS if b["id"] == current_id), None)
+        name = curr_info["name"] if curr_info else "Unknown"
+        desktop = current_desktop or "None"
+        print(f"Current default browser: {name} ({desktop})")
+        return
+
+    target = args.target.lower()
+    if target in ("next", "cycle"):
+        next_id = get_next_browser(current_id)
+    else:
+        next_id = identify_browser(target)
+        if not next_id:
+            print(f"Unknown browser or target '{args.target}'.", file=sys.stderr)
+            print(f"Available options: {', '.join(b['id'] for b in BROWSERS)}, next, status", file=sys.stderr)
+            sys.exit(1)
+
+    set_default_browser(next_id, notify=not args.no_notify, quiet=args.quiet)
+
+
+if __name__ == "__main__":
+    main()
