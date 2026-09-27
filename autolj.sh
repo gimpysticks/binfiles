@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 cfg_dir=${XDG_CONFIG_HOME:-$HOME/.config}
 
