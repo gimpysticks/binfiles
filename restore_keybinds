@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# restore_keybinds: Restores validated Pop!_OS COSMIC custom keybindings from ~/bin
+# to ~/.config/cosmic/com.system76.CosmicSettings.Shortcuts/v1/custom
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SOURCE_RON="$SCRIPT_DIR/cosmic-custom-keybindings.ron"
+TARGET_DIR="$HOME/.config/cosmic/com.system76.CosmicSettings.Shortcuts/v1"
+TARGET_FILE="$TARGET_DIR/custom"
+
+echo "=== Restoring Pop!_OS COSMIC Custom Keybindings ==="
+
+if [ ! -f "$SOURCE_RON" ]; then
+    echo "Error: Source keybindings file not found at $SOURCE_RON" >&2
+    exit 1
+fi
+
+python3 - "$SOURCE_RON" << 'EOF'
+import sys, re
+
+source_ron = sys.argv[1]
+with open(source_ron, 'r', encoding='utf-8') as f:
+    c = f.read()
+
+if c.count('{') != c.count('}'):
+    sys.exit('Error: Mismatched curly braces in RON file')
+if c.count('(') != c.count(')'):
+    sys.exit('Error: Mismatched parentheses in RON file')
+if c.count('[') != c.count(']'):
+    sys.exit('Error: Mismatched brackets in RON file')
+
+pattern = re.compile(
+    r'\(\s*modifiers:\s*\[(.*?)\]\s*,\s*key:\s*"((?:[^"\\]|\\.)*)"\s*,\s*description:\s*(?:Some\("((?:[^"\\]|\\.)*)"\)|None)\s*,?\s*\):\s*Spawn\("((?:[^"\\]|\\.)*)"\)',
+    re.DOTALL,
+)
+matches = pattern.findall(c)
+spawns = re.findall(r'Spawn\(', c)
+if len(matches) != len(spawns):
+    sys.exit(f'Error: Mismatch: found {len(spawns)} Spawn() but parsed {len(matches)} shortcut blocks')
+
+print(f'✓ Validation passed: {len(matches)} shortcuts valid.')
+EOF
+
+mkdir -p "$TARGET_DIR"
+cp -f "$SOURCE_RON" "$TARGET_FILE"
+echo "✓ Restored to $TARGET_FILE"
+echo "=== Keybindings restored successfully ==="

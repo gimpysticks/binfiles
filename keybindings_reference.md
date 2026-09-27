@@ -1,6 +1,6 @@
 # Pop!_OS Custom Keybindings Reference
 
-Last synced: `2026-09-27 16:48`
+Last synced: `2026-09-27 19:14`
 Live COSMIC Path: `~/.config/cosmic/com.system76.CosmicSettings.Shortcuts/v1/custom`  
 Repository Copy: [`cosmic-custom-keybindings.ron`](cosmic-custom-keybindings.ron)  
 Symlink: [`keybindings.ron`](keybindings.ron)  
@@ -30,7 +30,7 @@ Guake has been fully uninstalled and replaced by TildaZ as the drop-down termina
 
 | Key Combination | Name | Command | Notes |
 | :--- | :--- | :--- | :--- |
-| `F12` | Tildaz | `/home/sticks/.local/opt/tildaz/tildaz --toggle 0` | Replaces Guake; toggles TildaZ drop-down terminal |
+| `F12` | TildaZ_0 | `/home/sticks/.local/opt/tildaz/tildaz --toggle 0` | Replaces Guake; toggles TildaZ drop-down terminal |
 | `Super + e` | Gmail | `gtk-launch gmail` |  |
 | `Super + F10` | Youtube Music | `xdg-open https://music.youtube.com/` |  |
 | `Super + F2` | VimWiki | `gnome-terminal -- zsh -l -c "nvim"` | routed through `~/.local/bin/gnome-terminal` shim to `cosmic-term` |

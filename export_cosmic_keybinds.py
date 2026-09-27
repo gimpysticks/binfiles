@@ -32,8 +32,14 @@ def validate_ron_content(content):
     if content.count("{") != content.count("}"):
         return False, "Mismatched curly braces '{' and '}' in RON file."
 
+    if content.count("(") != content.count(")"):
+        return False, "Mismatched parentheses '(' and ')' in RON file."
+
+    if content.count("[") != content.count("]"):
+        return False, "Mismatched square brackets '[' and ']' in RON file."
+
     pattern = re.compile(
-        r"\(\s*modifiers:\s*\[(.*?)\]\s*,\s*key:\s*\"((?:[^\"\\]|\\.)*)\"\s*,\s*description:\s*(?:Some\(\"((?:[^\"\\]|\\.)*)\"\)|None)\s*,\s*\):\s*Spawn\(\"((?:[^\"\\]|\\.)*)\"\)",
+        r"\(\s*modifiers:\s*\[(.*?)\]\s*,\s*key:\s*\"((?:[^\"\\]|\\.)*)\"\s*,\s*description:\s*(?:Some\(\"((?:[^\"\\]|\\.)*)\"\)|None)\s*,?\s*\):\s*Spawn\(\"((?:[^\"\\]|\\.)*)\"\)",
         re.DOTALL,
     )
     matches = pattern.findall(content)
@@ -106,6 +112,7 @@ def update_markdown_reference(matches):
 
     special_notes = {
         ("F12", "Tildaz"): "Replaces Guake; toggles TildaZ drop-down terminal",
+        ("F12", "TildaZ_0"): "Replaces Guake; toggles TildaZ drop-down terminal",
         ("Super + Ctrl + g", "agy"): "Launch Antigravity CLI in cosmic-term",
     }
     for k, v in special_notes.items():

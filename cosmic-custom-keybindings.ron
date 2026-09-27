@@ -163,11 +163,6 @@
         description: Some("OBS-Studio"),
     ): Spawn("flatpak run com.obsproject.Studio"),
     (
-        modifiers: [],
-        key: "F12",
-        description: Some("Tildaz"),
-    ): Spawn("/home/sticks/.local/opt/tildaz/tildaz --toggle 0"),
-    (
         modifiers: [
             Alt,
         ],
@@ -308,4 +303,5 @@
         key: "t",
         description: Some("TikTok"),
     ): Spawn("xdg-open https://www.tiktok.com"),
+    (modifiers: [], key: "F12", description: Some("TildaZ_0")): Spawn("/home/sticks/.local/opt/tildaz/tildaz --toggle 0"),
 }
