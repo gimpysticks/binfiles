@@ -1,3 +1,2 @@
 #!/bin/sh
-echo -e $USERPASS|sudo -S systemctl poweroff
-
+exec "$(dirname "$0")/sd" "$@"

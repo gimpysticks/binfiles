@@ -1,28 +1,163 @@
 #!/bin/bash
-# Create the updatelog folder of it doesn't exist
+# ==============================================================================
+# ud - System & Application Updater (Optimized for Pop!_OS COSMIC)
+# ==============================================================================
+set -o pipefail
 
-mkdir -p $HOME/updatelogs/
+# Ensure the updatelog folder exists
+mkdir -p "$HOME/updatelogs"
 
-# DISTRO=$(cat /etc/issue|cut -d" " -f1)
-DISTRO=$(cat /etc/os-release|grep '^ID='|cut -d '=' -f2)
+# Check desktop notification capability
+notify() {
+    local urgency="${1:-normal}"
+    local icon="${2:-system-software-update}"
+    local title="$3"
+    local message="$4"
+    if command -v notify-send &>/dev/null && [ -n "$DISPLAY$WAYLAND_DISPLAY" ]; then
+        notify-send -u "$urgency" -i "$icon" "$title" "$message" 2>/dev/null || true
+    fi
+}
+
+# Authenticate sudo once and maintain timestamp during the update
+acquire_sudo() {
+    if [ "$EUID" -eq 0 ]; then
+        return 0
+    fi
+    if [ -n "$USERPASS" ]; then
+        if ! printf '%s\n' "$USERPASS" | sudo -S -v 2>/dev/null; then
+            echo "[!] Cached credentials failed; prompting for sudo password..."
+            sudo -v || return 1
+        fi
+    else
+        sudo -v || return 1
+    fi
+
+    # Background keep-alive loop so sudo doesn't timeout during large downloads
+    (
+        while true; do
+            sudo -n true 2>/dev/null || exit 0
+            sleep 50 &
+            wait $!
+            kill -0 "$$" 2>/dev/null || exit 0
+        done
+    ) < /dev/null > /dev/null 2>&1 &
+    SUDO_KEEP_ALIVE_PID=$!
+    trap 'kill -9 "$SUDO_KEEP_ALIVE_PID" 2>/dev/null' EXIT INT TERM
+    return 0
+}
+
+# Detect distribution cleanly
+DISTRO=""
+if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    DISTRO="${ID:-}"
+elif [ -f /etc/issue ]; then
+    DISTRO=$(cut -d" " -f1 /etc/issue)
+fi
+DISTRO=$(echo "$DISTRO" | tr '[:upper:]' '[:lower:]')
+
+echo "=========================================================="
+echo " Starting system update: $(date '+%Y-%m-%d %H:%M:%S')"
+echo " Detected distribution: ${DISTRO:-unknown}"
+echo "=========================================================="
+notify "low" "system-software-update" "System Update" "Starting updates..."
+
 case "$DISTRO" in
-    ubuntu|mint|pop|debian)
-        echo -e $USERPASS|sudo -S apt-get -o Acquire::ForceIPv4=true update
-        echo -e $USERPASS|sudo -S apt-get -y upgrade
-        echo -e $USERPASS|sudo -S apt-get -y full-upgrade
-        echo -e $USERPASS|sudo -S apt-get -y autoremove
-        echo -e $USERPASS|sudo -S apt-get -y autoclean
-        echo -e $USERPASS|sudo -S snap refresh
-        echo -e $USERPASS|sudo -S flatpak update -y
-        flatpak -y --user update
-    ;;
-    arch|salient)
-        echo -e $USERPASS|sudo -S pacman -Syyu --noconfirm
-        yay -Syu --noconfirm --devel
-    ;;
+    pop|ubuntu|mint|debian|elementary|zorin)
+        acquire_sudo || {
+            echo "[!] Failed to acquire sudo privileges. Aborting."
+            notify "critical" "dialog-error" "System Update" "Failed to acquire sudo privileges."
+            exit 1
+        }
+
+        # Prevent debconf / needrestart interactive lockups when running piped or unattended
+        export DEBIAN_FRONTEND="${DEBIAN_FRONTEND:-noninteractive}"
+
+        echo ""
+        echo "=== [$(date +%T)] [1/4] Refreshing APT Repositories ==="
+        sudo apt-get -o Acquire::ForceIPv4=true update
+
+        echo ""
+        echo "=== [$(date +%T)] [2/4] Upgrading System & COSMIC Packages ==="
+        sudo apt-get -o Acquire::ForceIPv4=true -y full-upgrade
+
+        echo ""
+        echo "=== [$(date +%T)] [3/4] Cleaning Orphaned Packages & Cache ==="
+        sudo apt-get -y autoremove --purge
+        sudo apt-get -y autoclean
+
+        # Flatpaks: On Pop!_OS COSMIC, flatpaks are primarily user-installed.
+        # Run without sudo so user and system flatpaks are properly updated
+        # without polluting user directories with root ownership.
+        if command -v flatpak &>/dev/null; then
+            echo ""
+            echo "=== [$(date +%T)] [4/4] Updating Flatpaks (Flathub & COSMIC) ==="
+            flatpak update -y
+            echo "=== [$(date +%T)] Cleaning Unused Flatpak Runtimes ==="
+            flatpak uninstall --unused -y
+        fi
+
+        # Snaps (if present on the system)
+        if command -v snap &>/dev/null; then
+            echo ""
+            echo "=== [$(date +%T)] Refreshing Snap Packages ==="
+            sudo snap refresh
+        fi
+        ;;
+
+    arch|salient|endeavouros|manjaro)
+        acquire_sudo || {
+            echo "[!] Failed to acquire sudo privileges. Aborting."
+            notify "critical" "dialog-error" "System Update" "Failed to acquire sudo privileges."
+            exit 1
+        }
+
+        echo ""
+        echo "=== [$(date +%T)] [1/2] Updating Pacman Packages ==="
+        sudo pacman -Syyu --noconfirm
+
+        if command -v yay &>/dev/null; then
+            echo ""
+            echo "=== [$(date +%T)] [2/2] Updating AUR Packages (yay) ==="
+            yay -Syu --noconfirm --devel
+        fi
+
+        if command -v flatpak &>/dev/null; then
+            echo ""
+            echo "=== [$(date +%T)] Updating Flatpaks ==="
+            flatpak update -y
+            flatpak uninstall --unused -y
+        fi
+
+        if command -v snap &>/dev/null; then
+            echo ""
+            echo "=== [$(date +%T)] Refreshing Snap Packages ==="
+            sudo snap refresh
+        fi
+        ;;
+
     *)
-        #Special Thanks to DG for inspiring my default error msgs
-        echo "$DISTRO Not in case statement"
-    ;;
+        echo "[!] Distribution '$DISTRO' is not supported in case statement."
+        notify "critical" "dialog-error" "System Update" "Distro '$DISTRO' not recognized."
+        exit 1
+        ;;
 esac
-exit
+
+echo ""
+echo "=========================================================="
+if [ -f /var/run/reboot-required ]; then
+    echo "=== [$(date +%T)] Update Complete: REBOOT REQUIRED ==="
+    if [ -f /var/run/reboot-required.pkgs ]; then
+        echo "Packages requiring reboot:"
+        sed 's/^/  - /' /var/run/reboot-required.pkgs
+    fi
+    echo "Run 'rb' to reboot now."
+    echo "=========================================================="
+    notify "critical" "system-reboot" "System Update" "Updates complete. A system reboot is required! (run 'rb')"
+else
+    echo "=== [$(date +%T)] Update Complete: System is fully up to date! ==="
+    echo "=========================================================="
+    notify "normal" "system-software-update" "System Update" "All updates finished successfully."
+fi
+
+exit 0

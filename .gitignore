@@ -9,5 +9,8 @@ tempfile
 /os
 .env
 
-# reinstall prep run logs (transient output, not source)
+# reinstall prep run logs and backups (transient output, not source)
 reinstall_prep_*/reinstall_*.log
+session-archives/**/*.log
+*.bak
+*.log
