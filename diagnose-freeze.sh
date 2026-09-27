@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # diagnose-freeze.sh
 #
-# Run this the moment GNOME Shell starts freezing/stuttering. It captures
+# Run this the moment your desktop or system starts freezing/stuttering. It captures
 # live system state to a timestamped log file so the freeze can be
 # diagnosed after the fact. Stop it with Ctrl+C once the freeze has passed.
 #

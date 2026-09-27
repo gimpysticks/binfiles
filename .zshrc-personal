@@ -188,7 +188,6 @@ export nerddict_stat="off"
 
 #set -o vi
 
-gsettings set org.gnome.desktop.input-sources xkb-options "['caps:escape']"
 
 
 #===========================================================================

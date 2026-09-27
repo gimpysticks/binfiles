@@ -12,7 +12,6 @@ sudo apt full-upgrade | tee -a ~/updates.txt
 
 sudo apt autoremove --purge | tee -a ~/updates.txt
 
-sudo apt install pop-desktop gdm3 | tee -a ~/updates.txt
 
 flatpak update --appstream
 

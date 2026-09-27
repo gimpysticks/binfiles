@@ -1,3 +1,23 @@
 #!/bin/bash
+# lock_timeout - Set screen lock timeout (supports Pop!_OS COSMIC and GNOME)
+
 lock_secs="${1:-300}"
-gsettings set org.gnome.desktop.screensaver lock-delay "$lock_secs"
+
+# COSMIC desktop support
+COSMIC_IDLE_DIR="$HOME/.config/cosmic/com.system76.CosmicIdle/v1"
+if [ -d "$COSMIC_IDLE_DIR" ] || [ "${XDG_CURRENT_DESKTOP:-}" = "COSMIC" ]; then
+    mkdir -p "$COSMIC_IDLE_DIR"
+    if [ "$lock_secs" -eq 0 ]; then
+        echo "None" > "$COSMIC_IDLE_DIR/screen_off_time"
+        echo "COSMIC screen lock/blank timeout disabled."
+    else
+        ms=$(( lock_secs * 1000 ))
+        echo "Some($ms)" > "$COSMIC_IDLE_DIR/screen_off_time"
+        echo "COSMIC screen lock/blank timeout set to ${lock_secs}s (${ms}ms)."
+    fi
+fi
+
+# GNOME fallback
+if command -v gsettings >/dev/null 2>&1; then
+    gsettings set org.gnome.desktop.screensaver lock-delay "$lock_secs" 2>/dev/null || true
+fi
