@@ -44,13 +44,14 @@ UUID=FA77-2196  /mnt/backup  exfat  defaults,nofail,x-systemd.device-timeout=30 
 ## Backup Script
 
 **Location:** `~/bin/Backup`  
-**Usage:** `Backup sticks`
+**Usage:** `Backup sticks [--force]`
 
 - Backs up `/home/sticks/` to `/mnt/backup`
 - Uses `rsync` with exFAT-compatible flags (`-rltDv`)
 - Sends Discord webhook notifications on start and completion
 - Logs stored at `/mnt/backup/logs/`
 - Aborts safely if `/mnt/backup` is not mounted
+- Restricts automatic execution to the 4:00 AM hour (requires `--force` for off-hour manual runs)
 
 ### Key Excludes
 Cache, trash, Firefox cache, thumbnails, npm/node_modules, yarn,
@@ -63,7 +64,7 @@ See comments at the top of `~/bin/Backup` for instructions.
 
 ## Systemd Timer
 
-Runs the backup automatically every day at **4:00 AM**.
+Runs the backup automatically once a day at **4:00 AM**. Does not run on reboot or catch up missed runs.
 
 | File | Path |
 |------|------|

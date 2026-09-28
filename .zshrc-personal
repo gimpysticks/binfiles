@@ -118,9 +118,6 @@ alias dkterm='docker exec -it'
 alias dkstrt='docker start'
 # Stops a container, it requires the image name \ ID as parameter
 alias dkstp='docker stop'
-# Stops or Starts Nerd Dictation
-alias ndbeg='nerd-dictation begin'
-alias ndend='nerd-dictation end'
 #nvimAliases
 # alias vmconkyproc="vim $(ps auxf|grep conky|grep -v grep|awk '{ print $13 }')"
 alias vmlightdm="sudo nvim /etc/lightdm/lightdm.conf"
@@ -173,7 +170,6 @@ export PATH=${PATH}:/home/sticks/.local/bin
 export PATH=${PATH}:/home/sticks/thunderbird
 export PATH=${PATH}:/home/sticks/appimages
 export PATH=${PATH}:/home/sticks/bin
-export PATH=${PATH}:/home/sticks/.config/nerd-dictation
 export LIBVIRT_DEFAULT_URI="qemu:///system"
 export OPENEARDuet="CD:0E:27:D1:AF:66"
 export OraoloM91="F4:4E:FD:D6:55:B3"
@@ -184,7 +180,6 @@ $(curl -s https://icanhazip.com)"
 #export PROMPT_COMMAND='history -a'
 export gutfeld="https://www.foxnews.com/shows/gutfeld"
 export redbubble="https://www.redbubble.com/people/gimpysticks/shop?asc=u"
-export nerddict_stat="off"
 
 #set -o vi
 

@@ -1,0 +1,153 @@
+#!/usr/bin/env bash
+#
+# monitor-off - Turn off monitor power (DPMS sleep) for bedtime or idle
+# Supports Wayland (COSMIC, Sway, wlroots) and X11 sessions.
+#
+set -euo pipefail
+
+DELAY=1
+LOCK=false
+ACTION="off"
+TARGET="*"
+USE_DDC=false
+
+usage() {
+    cat << 'EOF'
+Usage: monitor-off [OPTIONS] [ACTION]
+
+Turn off monitor power for bedtime or idle. Moving the mouse or
+pressing any keyboard key will wake the display back up.
+
+Actions:
+  off            Turn monitor(s) off (default)
+  on             Turn monitor(s) on
+  toggle         Toggle monitor power
+
+Options:
+  -l, --lock     Lock session before turning off screen
+  -d, --delay N  Wait N seconds before turning off (default: 1)
+                 (Prevents key-release/click from immediately waking screen)
+  -o, --output S Specific display output (e.g. DP-1, or '*' for all; default: '*')
+  --hard, --ddc  Use DDC/CI to physically power off the monitor (requires ddcutil)
+  -h, --help     Show this help message
+
+Examples:
+  monitor-off          # Turn off all monitors after 1s
+  monitor-off --lock   # Lock screen and turn off monitors
+  monitor-off -d 3     # Wait 3 seconds before turning off
+  monitor-off on       # Turn monitors back on
+EOF
+}
+
+# Parse options
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        -l|--lock)
+            LOCK=true
+            shift
+            ;;
+        -d|--delay)
+            DELAY="$2"
+            shift 2
+            ;;
+        -o|--output)
+            TARGET="$2"
+            shift 2
+            ;;
+        --hard|--ddc)
+            USE_DDC=true
+            shift
+            ;;
+        off|on|toggle)
+            ACTION="$1"
+            shift
+            ;;
+        *)
+            echo "Unknown option/action: $1" >&2
+            usage >&2
+            exit 1
+            ;;
+    esac
+done
+
+# If locking was requested, lock the session first
+if [[ "$LOCK" = true ]]; then
+    if command -v loginctl >/dev/null 2>&1; then
+        loginctl lock-session
+    fi
+fi
+
+# Debounce delay so key/mouse release doesn't immediately wake the screen
+if [[ "$ACTION" = "off" && "$DELAY" -gt 0 ]]; then
+    sleep "$DELAY"
+fi
+
+# Hard power off via DDC/CI if requested
+if [[ "$USE_DDC" = true ]]; then
+    if ! command -v ddcutil >/dev/null 2>&1; then
+        echo "Error: ddcutil is not installed." >&2
+        exit 1
+    fi
+    if [[ "$ACTION" = "off" ]]; then
+        echo "Sending DDC/CI power-off command to monitor..."
+        sudo ddcutil setvcp d6 5 2>/dev/null || ddcutil setvcp d6 5
+        exit 0
+    elif [[ "$ACTION" = "on" ]]; then
+        echo "Sending DDC/CI power-on command to monitor..."
+        sudo ddcutil setvcp d6 1 2>/dev/null || ddcutil setvcp d6 1
+        exit 0
+    fi
+fi
+
+# Wayland DPMS handling
+if [[ -n "${WAYLAND_DISPLAY:-}" || "${XDG_SESSION_TYPE:-}" = "wayland" ]]; then
+    if command -v wlopm >/dev/null 2>&1; then
+        case "$ACTION" in
+            off)
+                wlopm --off "$TARGET"
+                ;;
+            on)
+                wlopm --on "$TARGET"
+                ;;
+            toggle)
+                wlopm --toggle "$TARGET"
+                ;;
+        esac
+        exit 0
+    elif command -v hyprctl >/dev/null 2>&1; then
+        hyprctl dispatch dpms "$ACTION"
+        exit 0
+    elif command -v swaymsg >/dev/null 2>&1; then
+        swaymsg "output * dpms $ACTION"
+        exit 0
+    fi
+fi
+
+# X11 DPMS handling
+if [[ -n "${DISPLAY:-}" ]]; then
+    if command -v xset >/dev/null 2>&1; then
+        case "$ACTION" in
+            off)
+                xset dpms force off
+                ;;
+            on)
+                xset dpms force on
+                ;;
+            toggle)
+                if xset q | grep -q "Monitor is On"; then
+                    xset dpms force off
+                else
+                    xset dpms force on
+                fi
+                ;;
+        esac
+        exit 0
+    fi
+fi
+
+echo "Error: Could not find a supported utility to control monitor power (wlopm, xset)." >&2
+exit 1

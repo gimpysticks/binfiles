@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Configuration
+SRC_DIR="/home/sticks/.steam/steam/steamapps/common"
+GAME_DIR="War Thunder"
+MANIFEST="/home/sticks/.steam/steam/steamapps/appmanifest_236390.acf"
+DEST_DIR="/mnt/WT-Gamefiles"
+BACKUP_ARCHIVE="${DEST_DIR}/War_Thunder_Backup.tar.zst"
+TMP_ARCHIVE="${DEST_DIR}/War_Thunder_Backup.tar.zst.tmp"
+LOG_DIR="${DEST_DIR}/logs"
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+
+# Optional Webhook Notification
+[ -f "/home/sticks/.envrc" ] && source "/home/sticks/.envrc"
+WEBHOOK_URL="${BACKUP_HOOKWEB:-}"
+
+send_notify() {
+    local msg="$1"
+    if [ -n "$WEBHOOK_URL" ]; then
+        curl -s -X POST -H "Content-Type: application/json" -d "{\"content\": \"$msg\"}" "$WEBHOOK_URL" || true
+    fi
+}
+
+# 1. Verify destination mount point is active
+if ! mountpoint -q "$DEST_DIR"; then
+    echo "ERROR: $DEST_DIR is not mounted. Aborting backup." >&2
+    send_notify "War Thunder Backup FAILED: $DEST_DIR is not mounted ($(date +%c))"
+    exit 1
+fi
+
+# 2. Verify source game directory exists
+if [ ! -d "${SRC_DIR}/${GAME_DIR}" ]; then
+    echo "ERROR: Source game directory ${SRC_DIR}/${GAME_DIR} not found. Aborting." >&2
+    send_notify "War Thunder Backup FAILED: Game folder not found ($(date +%c))"
+    exit 1
+fi
+
+mkdir -p "$LOG_DIR"
+LOG_FILE="${LOG_DIR}/backup-${TIMESTAMP}.log"
+
+echo "=== War Thunder Backup Started at $(date +%c) ===" | tee -a "$LOG_FILE"
+send_notify "War Thunder Backup Started ($(date +%c))"
+
+# 3. Copy Steam App Manifest
+if [ -f "$MANIFEST" ]; then
+    cp "$MANIFEST" "$DEST_DIR/"
+    echo "Saved Steam appmanifest to $DEST_DIR" | tee -a "$LOG_FILE"
+fi
+
+# 4. Create compressed archive
+# Using nice and ionice to keep the machine responsive
+echo "Compressing War Thunder to ${TMP_ARCHIVE}..." | tee -a "$LOG_FILE"
+if nice -n 19 ionice -c 3 tar -cf - -C "$SRC_DIR" "$GAME_DIR" | zstd -T0 -3 -o "$TMP_ARCHIVE" 2>> "$LOG_FILE"; then
+    mv -f "$TMP_ARCHIVE" "$BACKUP_ARCHIVE"
+    echo "=== War Thunder Backup Completed Successfully at $(date +%c) ===" | tee -a "$LOG_FILE"
+    send_notify "War Thunder Backup Completed Successfully ($(date +%c))"
+else
+    rm -f "$TMP_ARCHIVE"
+    echo "ERROR: Compression failed!" | tee -a "$LOG_FILE"
+    send_notify "War Thunder Backup FAILED during compression ($(date +%c))"
+    exit 1
+fi

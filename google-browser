@@ -1,4 +1,3 @@
 #!/bin/sh
 
-xdg-settings set default-web-browser com.google.Chrome.desktop
-flatpak run com.google.Chrome
+xdg-settings set default-web-browser google-chrome.desktop && gtk-launch google-chrome.desktop

@@ -1,6 +1,6 @@
 # Pop!_OS Custom Keybindings Reference
 
-Last synced: `2026-09-27 19:14`
+Last synced: `2026-09-28 13:49`
 Live COSMIC Path: `~/.config/cosmic/com.system76.CosmicSettings.Shortcuts/v1/custom`  
 Repository Copy: [`cosmic-custom-keybindings.ron`](cosmic-custom-keybindings.ron)  
 Symlink: [`keybindings.ron`](keybindings.ron)  
@@ -9,8 +9,8 @@ Symlink: [`keybindings.ron`](keybindings.ron)
 
 ## Overview
 
-- **Active in Pop!_OS COSMIC**: 40
-- **Removed - app not installed**: 7
+- **Active in Pop!_OS COSMIC**: 41
+- **Removed - app not installed**: 6
 - **Removed - explicitly requested**: 2 (Guake, Digikam)
 - **Preserved COSMIC Defaults**: 1
 
@@ -59,6 +59,7 @@ Guake has been fully uninstalled and replaced by TildaZ as the drop-down termina
 | `Super + Alt + t` | TikTok | `xdg-open https://www.tiktok.com` |  |
 | `Super + Alt + w` | Warp Terminal | `warp-terminal` |  |
 | `Super + Alt + x` | X.com | `xdg-open https://x.com/home` |  |
+| `Super + Shift + m` | Monitor Off | `/home/sticks/bin/monitor-off` | Turn off monitor power (DPMS sleep) via wlopm |
 | `Super + Shift + o` | ChatGpt | `xdg-open https://chatgpt.com/` |  |
 | `Super + Shift + s` | Shotcut | `flatpak run org.shotcut.Shotcut` |  |
 | `Super + Shift + t` | Twitch | `/usr/bin/firefox www.twitch.com` |  |
@@ -84,7 +85,6 @@ Guake has been fully uninstalled and replaced by TildaZ as the drop-down termina
 | `Ctrl + Alt + o` | OpenRGB (flatpak) | `org.openrgb.OpenRGB` not in `flatpak list` |
 | `Ctrl + Alt + p` | polychromatic-tray-applet | binary not on PATH, not in dpkg |
 | `Super + Alt + h` | Hypnotix | binary not on PATH, not in dpkg |
-| `Super + Alt + n` | toggle_nerd_dict | `nerddict` wrapper exists but calls `nerd-dictation`, which is not installed |
 
 ### Removed - explicitly requested (both were actually installed)
 | Former Binding | App | Installed evidence |

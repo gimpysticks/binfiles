@@ -57,17 +57,17 @@ BROWSERS = [
     {
         "id": "chrome",
         "name": "Google Chrome",
-        "candidates": ["com.google.Chrome.desktop", "google-chrome.desktop"],
-        "icon": "com.google.Chrome",
-        "fallback_icon": "google-chrome",
+        "candidates": ["google-chrome.desktop", "com.google.Chrome.desktop"],
+        "icon": "google-chrome",
+        "fallback_icon": "com.google.Chrome",
         "aliases": ["chrome", "google-chrome", "google", "com.google.chrome"],
     },
     {
         "id": "brave",
         "name": "Brave",
-        "candidates": ["com.brave.Browser.desktop", "brave-browser.desktop"],
-        "icon": "com.brave.Browser",
-        "fallback_icon": "brave-browser",
+        "candidates": ["brave-browser.desktop", "com.brave.Browser.desktop"],
+        "icon": "brave-browser",
+        "fallback_icon": "com.brave.Browser",
         "aliases": ["brave", "brave-browser", "com.brave.browser"],
     },
 ]
@@ -256,12 +256,17 @@ def update_mimeapps_file(filepath: Path, mime_map: dict[str, str]):
     tmp_path.replace(filepath)
 
 
-def send_notification(b_info: dict):
+def send_notification(b_info: dict, desktop_file: str | None = None):
     """Send desktop notification via notify-send."""
     if not shutil.which("notify-send"):
         return
 
     icon = b_info.get("icon", "")
+    if desktop_file:
+        cand_icon = desktop_file.removesuffix(".desktop")
+        if cand_icon in (b_info.get("icon"), b_info.get("fallback_icon")):
+            icon = cand_icon
+
     cmd = [
         "notify-send",
         "-t", "3000",
@@ -325,7 +330,7 @@ def set_default_browser(browser_id: str, notify: bool = True, quiet: bool = Fals
 
     # 6. Notification
     if notify:
-        send_notification(b_info)
+        send_notification(b_info, desktop_file=desktop_file)
 
 
 def main():

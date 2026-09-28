@@ -1,6 +1,60 @@
 {
     (
         modifiers: [
+            Super,
+            Alt,
+        ],
+        key: "x",
+        description: Some("X.com"),
+    ): Spawn("xdg-open https://x.com/home"),
+    (
+        modifiers: [
+            Ctrl,
+            Alt,
+        ],
+        key: "Left",
+        description: Some("Variety Previous"),
+    ): Spawn("/usr/bin/variety --previous"),
+    (
+        modifiers: [
+            Alt,
+        ],
+        key: "Right",
+        description: Some("Variety Next"),
+    ): Spawn("/usr/bin/variety --next"),
+    (
+        modifiers: [
+            Super,
+            Shift,
+        ],
+        key: "t",
+        description: Some("Twitch"),
+    ): Spawn("/usr/bin/firefox www.twitch.com"),
+    (
+        modifiers: [
+            Super,
+            Shift,
+        ],
+        key: "s",
+        description: Some("Shotcut"),
+    ): Spawn("flatpak run org.shotcut.Shotcut"),
+    (
+        modifiers: [
+            Ctrl,
+        ],
+        key: "space",
+        description: Some("Handy Speech to Text"),
+    ): Spawn("/home/sticks/.local/bin/handy --toggle-transcription"),
+    (
+        modifiers: [
+            Super,
+            Ctrl,
+        ],
+        key: "a",
+        description: Some("AI Urls"),
+    ): Spawn("/home/sticks/bin/aiurls"),
+    (
+        modifiers: [
             Ctrl,
             Alt,
         ],
@@ -10,11 +64,19 @@
     (
         modifiers: [
             Super,
-            Alt,
+            Ctrl,
         ],
-        key: "g",
-        description: Some("Gemini"),
-    ): Spawn("xdg-open https://gemini.google.com/app"),
+        key: "o",
+        description: Some("ChatGPT"),
+    ): Spawn("xdg-open https://www.chatgpt.com"),
+    (
+        modifiers: [
+            Super,
+            Ctrl,
+        ],
+        key: "b",
+        description: Some("Bpytop"),
+    ): Spawn("gnome-terminal -- bash -c \"bpytop\""),
     (
         modifiers: [
             Super,
@@ -27,17 +89,17 @@
             Super,
             Alt,
         ],
-        key: "k",
-        description: Some("Grok"),
-    ): Spawn("xdg-open https://www.grok.com"),
+        key: "d",
+        description: Some("Discord Web"),
+    ): Spawn("xdg-open https://discord.com/channels/411154143567282177/1182420235672887397"),
     (
         modifiers: [
             Super,
-            Ctrl,
+            Shift,
         ],
         key: "o",
-        description: Some("ChatGPT"),
-    ): Spawn("xdg-open https://www.chatgpt.com"),
+        description: Some("ChatGpt"),
+    ): Spawn("xdg-open https://chatgpt.com/"),
     (
         modifiers: [
             Super,
@@ -57,18 +119,80 @@
     (
         modifiers: [
             Super,
+        ],
+        key: "e",
+        description: Some("Gmail"),
+    ): Spawn("gtk-launch gmail"),
+    (
+        modifiers: [
+            Super,
+            Alt,
+        ],
+        key: "t",
+        description: Some("TikTok"),
+    ): Spawn("xdg-open https://www.tiktok.com"),
+    (
+        modifiers: [
+            Super,
+            Alt,
+        ],
+        key: "o",
+        description: Some("OBS-Studio"),
+    ): Spawn("flatpak run com.obsproject.Studio"),
+    (
+        modifiers: [
+            Super,
             Ctrl,
         ],
-        key: "b",
-        description: Some("Bpytop"),
-    ): Spawn("gnome-terminal -- bash -c \"bpytop\""),
+        key: "d",
+        description: Some("Discord"),
+    ): Spawn("flatpak run com.discordapp.Discord"),
     (
         modifiers: [
             Alt,
         ],
-        key: "Right",
-        description: Some("Variety Next"),
-    ): Spawn("/usr/bin/variety --next"),
+        key: "Left",
+        description: Some("variety Previous"),
+    ): Spawn("/usr/bin/variety --previous"),
+    (
+        modifiers: [
+            Super,
+            Alt,
+        ],
+        key: "f",
+        description: Some("Facebook"),
+    ): Spawn("xdg-open https://www.facebook.com/gimpysticks"),
+    (
+        modifiers: [
+            Super,
+        ],
+        key: "F3",
+        description: Some("Gimp"),
+    ): Spawn("/bin/gimp"),
+    (
+        modifiers: [
+            Alt,
+            Shift,
+        ],
+        key: "w",
+        description: Some("Work URLS"),
+    ): Spawn("bash -c /home/sticks/bin/workurls"),
+    (
+        modifiers: [
+            Super,
+            Alt,
+        ],
+        key: "k",
+        description: Some("Grok"),
+    ): Spawn("xdg-open https://www.grok.com"),
+    (
+        modifiers: [
+            Super,
+            Alt,
+        ],
+        key: "i",
+        description: Some("Instagram"),
+    ): Spawn("xdg-open https://www.instagram.com"),
     (
         modifiers: [
             Super,
@@ -77,6 +201,22 @@
         key: "c",
         description: Some("Connections"),
     ): Spawn("flatpak run org.gnome.Connections"),
+    (
+        modifiers: [
+            Super,
+            Alt,
+        ],
+        key: "m",
+        description: Some("Midjourney"),
+    ): Spawn("xdg-open https://www.midjourney.com"),
+    (
+        modifiers: [
+            Super,
+            Alt,
+        ],
+        key: "e",
+        description: Some("Eleven Labs"),
+    ): Spawn("xdg-open https://elevenlabs.io/app/home"),
     (
         modifiers: [
             Alt,
@@ -88,10 +228,51 @@
     (
         modifiers: [
             Super,
+            Ctrl,
         ],
-        key: "F3",
-        description: Some("Gimp"),
-    ): Spawn("/bin/gimp"),
+        key: "g",
+        description: Some("agy"),
+    ): Spawn("cosmic-term -e agy"),
+    (
+        modifiers: [
+            Super,
+            Ctrl,
+        ],
+        key: "r",
+        description: Some("Read Human"),
+    ): Spawn("/home/sticks/bin/readgTTS"),
+    (
+        modifiers: [
+            Super,
+            Alt,
+        ],
+        key: "w",
+        description: Some("Warp Terminal"),
+    ): Spawn("warp-terminal"),
+    (
+        modifiers: [
+            Super,
+            Alt,
+        ],
+        key: "r",
+        description: Some("Redbubble"),
+    ): Spawn("xdg-open https://www.redbubble.com/portfolio/manage_works?ref=account-nav-dropdown"),
+    (
+        modifiers: [
+            Ctrl,
+            Alt,
+        ],
+        key: "BackSpace",
+        description: Some("Restart X"),
+    ): Spawn("/home/sticks/bin/restartx"),
+    (
+        modifiers: [
+            Super,
+            Alt,
+        ],
+        key: "g",
+        description: Some("Gemini"),
+    ): Spawn("xdg-open https://gemini.google.com/app"),
     (
         modifiers: [
             Super,
@@ -109,136 +290,11 @@
     ): Spawn("/home/sticks/bin/chgbrowser"),
     (
         modifiers: [
-            Ctrl,
-        ],
-        key: "space",
-        description: Some("Handy Speech to Text"),
-    ): Spawn("/home/sticks/.local/bin/handy --toggle-transcription"),
-    (
-        modifiers: [
-            Super,
-            Shift,
-        ],
-        key: "o",
-        description: Some("ChatGpt"),
-    ): Spawn("xdg-open https://chatgpt.com/"),
-    (
-        modifiers: [
-            Super,
-            Alt,
-        ],
-        key: "f",
-        description: Some("Facebook"),
-    ): Spawn("xdg-open https://www.facebook.com/gimpysticks"),
-    (
-        modifiers: [
-            Super,
-            Alt,
-        ],
-        key: "r",
-        description: Some("Redbubble"),
-    ): Spawn("xdg-open https://www.redbubble.com/portfolio/manage_works?ref=account-nav-dropdown"),
-    (
-        modifiers: [
-            Alt,
-            Shift,
-        ],
-        key: "w",
-        description: Some("Work URLS"),
-    ): Spawn("bash -c /home/sticks/bin/workurls"),
-    (
-        modifiers: [
-            Super,
-            Alt,
-        ],
-        key: "m",
-        description: Some("Midjourney"),
-    ): Spawn("xdg-open https://www.midjourney.com"),
-    (
-        modifiers: [
-            Super,
-            Alt,
-        ],
-        key: "o",
-        description: Some("OBS-Studio"),
-    ): Spawn("flatpak run com.obsproject.Studio"),
-    (
-        modifiers: [
-            Alt,
-        ],
-        key: "Left",
-        description: Some("variety Previous"),
-    ): Spawn("/usr/bin/variety --previous"),
-    (
-        modifiers: [
-            Super,
-            Ctrl,
-        ],
-        key: "g",
-        description: Some("agy"),
-    ): Spawn("cosmic-term -e agy"),
-    (
-        modifiers: [
-            Super,
-            Alt,
-        ],
-        key: "w",
-        description: Some("Warp Terminal"),
-    ): Spawn("warp-terminal"),
-    (
-        modifiers: [
-            Ctrl,
-            Alt,
-        ],
-        key: "Left",
-        description: Some("Variety Previous"),
-    ): Spawn("/usr/bin/variety --previous"),
-    (
-        modifiers: [
-            Super,
-        ],
-        key: "e",
-        description: Some("Gmail"),
-    ): Spawn("gtk-launch gmail"),
-    (
-        modifiers: [
-            Ctrl,
-            Alt,
-        ],
-        key: "BackSpace",
-        description: Some("Restart X"),
-    ): Spawn("/home/sticks/bin/restartx"),
-    (
-        modifiers: [
             Super,
         ],
         key: "F2",
         description: Some("VimWiki"),
     ): Spawn("gnome-terminal -- zsh -l -c \"nvim\""),
-    (
-        modifiers: [
-            Super,
-            Alt,
-        ],
-        key: "d",
-        description: Some("Discord Web"),
-    ): Spawn("xdg-open https://discord.com/channels/411154143567282177/1182420235672887397"),
-    (
-        modifiers: [
-            Super,
-            Ctrl,
-        ],
-        key: "a",
-        description: Some("AI Urls"),
-    ): Spawn("/home/sticks/bin/aiurls"),
-    (
-        modifiers: [
-            Super,
-            Alt,
-        ],
-        key: "e",
-        description: Some("Eleven Labs"),
-    ): Spawn("xdg-open https://elevenlabs.io/app/home"),
     (
         modifiers: [
             Super,
@@ -252,56 +308,8 @@
             Super,
             Shift,
         ],
-        key: "t",
-        description: Some("Twitch"),
-    ): Spawn("/usr/bin/firefox www.twitch.com"),
-    (
-        modifiers: [
-            Super,
-            Alt,
-        ],
-        key: "x",
-        description: Some("X.com"),
-    ): Spawn("xdg-open https://x.com/home"),
-    (
-        modifiers: [
-            Super,
-            Ctrl,
-        ],
-        key: "r",
-        description: Some("Read Human"),
-    ): Spawn("/home/sticks/bin/readgTTS"),
-    (
-        modifiers: [
-            Super,
-            Shift,
-        ],
-        key: "s",
-        description: Some("Shotcut"),
-    ): Spawn("flatpak run org.shotcut.Shotcut"),
-    (
-        modifiers: [
-            Super,
-            Ctrl,
-        ],
-        key: "d",
-        description: Some("Discord"),
-    ): Spawn("flatpak run com.discordapp.Discord"),
-    (
-        modifiers: [
-            Super,
-            Alt,
-        ],
-        key: "i",
-        description: Some("Instagram"),
-    ): Spawn("xdg-open https://www.instagram.com"),
-    (
-        modifiers: [
-            Super,
-            Alt,
-        ],
-        key: "t",
-        description: Some("TikTok"),
-    ): Spawn("xdg-open https://www.tiktok.com"),
+        key: "m",
+        description: Some("Monitor Off"),
+    ): Spawn("/home/sticks/bin/monitor-off"),
     (modifiers: [], key: "F12", description: Some("TildaZ_0")): Spawn("/home/sticks/.local/opt/tildaz/tildaz --toggle 0"),
 }

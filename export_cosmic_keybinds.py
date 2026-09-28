@@ -114,6 +114,7 @@ def update_markdown_reference(matches):
         ("F12", "Tildaz"): "Replaces Guake; toggles TildaZ drop-down terminal",
         ("F12", "TildaZ_0"): "Replaces Guake; toggles TildaZ drop-down terminal",
         ("Super + Ctrl + g", "agy"): "Launch Antigravity CLI in cosmic-term",
+        ("Super + Shift + m", "Monitor Off"): "Turn off monitor power (DPMS sleep) via wlopm",
     }
     for k, v in special_notes.items():
         if k not in existing_notes:
@@ -162,7 +163,6 @@ Guake has been fully uninstalled and replaced by TildaZ as the drop-down termina
 | `Ctrl + Alt + o` | OpenRGB (flatpak) | `org.openrgb.OpenRGB` not in `flatpak list` |
 | `Ctrl + Alt + p` | polychromatic-tray-applet | binary not on PATH, not in dpkg |
 | `Super + Alt + h` | Hypnotix | binary not on PATH, not in dpkg |
-| `Super + Alt + n` | toggle_nerd_dict | `nerddict` wrapper exists but calls `nerd-dictation`, which is not installed |
 
 ### Removed - explicitly requested (both were actually installed)
 | Former Binding | App | Installed evidence |
@@ -216,7 +216,7 @@ Symlink: [`keybindings.ron`](keybindings.ron)
 ## Overview
 
 - **Active in Pop!_OS COSMIC**: {len(entries)}
-- **Removed - app not installed**: 7
+- **Removed - app not installed**: 6
 - **Removed - explicitly requested**: 2 (Guake, Digikam)
 - **Preserved COSMIC Defaults**: 1
 

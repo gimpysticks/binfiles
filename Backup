@@ -17,8 +17,20 @@
 
 if [ $# -lt 1 ]
     then
-        echo "USAGE: '$0' username"
+        echo "USAGE: '$0' username [--force]"
         exit 1
+fi
+
+# Restrict execution to 4:00 AM unless --force is specified
+FORCE=0
+for arg in "$@"; do
+    [ "$arg" = "--force" ] && FORCE=1
+done
+
+CURRENT_HOUR=$(date +%H)
+if [ "$CURRENT_HOUR" != "04" ] && [ "$FORCE" -ne 1 ]; then
+    echo "Notice: Backup is restricted to run only at 4:00 AM (current hour: $CURRENT_HOUR). Aborting."
+    exit 0
 fi
 
 DEST="/mnt/backup"   # To pass destination at runtime, replace with: DEST="$2"
@@ -49,7 +61,9 @@ curl -s -X POST -H "Content-Type: application/json" -d "$PAYLOAD" "$WEBHOOK_URL"
 
 #-------Run Script--------------------------------------------------------------
 # exFAT compatible flags (-rltDv instead of -aAXHv)
-rsync -rltDv --info=progress2 --delete \
+# Using nice and ionice (idle class) so backup yields CPU and disk I/O to interactive applications
+nice -n 19 ionice -c 3 rsync -rltDv --info=progress2 --delete \
+  --exclude='.cache' \
   --exclude='.cache/*' \
   --exclude='.local/share/Trash/*' \
   --exclude='.mozilla/firefox/*/Cache*/*' \
@@ -68,6 +82,14 @@ rsync -rltDv --info=progress2 --delete \
   --exclude='.wine/*' \
   --exclude='snap/*' \
   --exclude='.snapd/*' \
+  --exclude='.steam' \
+  --exclude='.steam/*' \
+  --exclude='.local/share/Steam' \
+  --exclude='.local/share/Steam/*' \
+  --exclude='.local/share/flatpak' \
+  --exclude='.local/share/flatpak/*' \
+  --exclude='.var/app/com.valvesoftware.Steam' \
+  --exclude='.var/app/com.valvesoftware.Steam/*' \
   --exclude="$DEST" \
 "/home/$1/" "$DEST" >> "$LOG_DIR/$(hostname)-$1-$(date +%Y%m%d%H%M).log" 2>&1
 
