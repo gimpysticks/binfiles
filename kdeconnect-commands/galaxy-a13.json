@@ -1,0 +1,43 @@
+{
+  "device_name": "Galaxy A13",
+  "device_id": "9e2113b65d2d4cb18b6ec7e4fc9c2517",
+  "exported_at": "2026-09-28T22:47:16.909437",
+  "commands_count": 7,
+  "commands": [
+    {
+      "id": "_f8fc2001_cfbb_4024_b4bd_e396f3840bd3_",
+      "name": "Monitor Off",
+      "command": "/home/sticks/bin/monitor-off"
+    },
+    {
+      "id": "_0f9b1f5d_2a61_48df_b78e_ab39a74ca0bb_",
+      "name": "Monitor On",
+      "command": "/home/sticks/bin/monitor-off on"
+    },
+    {
+      "id": "_1c1c5239_0dc7_4ee1_b4da_c63be0668e70_",
+      "name": "Lock & Screen Off",
+      "command": "/home/sticks/bin/monitor-off --lock"
+    },
+    {
+      "id": "_56f0f39c_9ef2_4196_9763_df194390aaa1_",
+      "name": "Suspend PC",
+      "command": "/home/sticks/bin/sp"
+    },
+    {
+      "id": "_afbe8d16_2e8c_4910_98ec_d60e809b12b7_",
+      "name": "Reboot PC",
+      "command": "/home/sticks/bin/rb"
+    },
+    {
+      "id": "_40b83002_146b_4493_8c22_135496cfcc5d_",
+      "name": "Shutdown PC",
+      "command": "/home/sticks/bin/sd"
+    },
+    {
+      "id": "_66a46af6_28ef_4bb8_80a1_69bb5cc3bbec_",
+      "name": "Logout PC",
+      "command": "/home/sticks/bin/lo"
+    }
+  ]
+}

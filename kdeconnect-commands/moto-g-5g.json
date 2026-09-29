@@ -1,0 +1,43 @@
+{
+  "device_name": "moto g 5G - 2023",
+  "device_id": "38d40c1b6dec4d69ac04274d1ba3bf4a",
+  "exported_at": "2026-09-28T22:47:16.909682",
+  "commands_count": 7,
+  "commands": [
+    {
+      "id": "_627205f5_b0df_492b_bebe_f1cf752b739a_",
+      "name": "Monitor Off",
+      "command": "/home/sticks/bin/monitor-off"
+    },
+    {
+      "id": "_520a73cb_1e78_427a_82f0_a61c28855e58_",
+      "name": "Monitor On",
+      "command": "/home/sticks/bin/monitor-off on"
+    },
+    {
+      "id": "_78bc71d6_aa9d_4ddc_93c8_2ea5bd308f0d_",
+      "name": "Lock & Screen Off",
+      "command": "/home/sticks/bin/monitor-off --lock"
+    },
+    {
+      "id": "_b08a1616_8bf9_405d_8698_6d0eea8b53c1_",
+      "name": "Suspend PC",
+      "command": "/home/sticks/bin/sp"
+    },
+    {
+      "id": "_2fd805cf_2bfe_499f_beb7_65aa5828dfb3_",
+      "name": "Reboot PC",
+      "command": "/home/sticks/bin/rb"
+    },
+    {
+      "id": "_b944da18_2bd5_441a_9b48_6ce9dad4ef63_",
+      "name": "Shutdown PC",
+      "command": "/home/sticks/bin/sd"
+    },
+    {
+      "id": "_42536240_8afa_4647_a624_822e677ff117_",
+      "name": "Logout PC",
+      "command": "/home/sticks/bin/lo"
+    }
+  ]
+}
