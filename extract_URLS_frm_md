@@ -1,15 +1,224 @@
 #!/usr/bin/env bash
 
-# 1. Validate argument
-if [ -z "$1" ]; then
-  echo "Usage: $0 <markdown_file>" >&2
-  exit 1
+# extract_URLS_frm_md: Extract video URLs from markdown files (MarkDownload clips), web pages, or piped text.
+export PATH="$HOME/bin:$HOME/.local/bin:$PATH"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export PATH="$SCRIPT_DIR:$PATH"
+
+print_only=false
+targets=()
+
+for arg in "$@"; do
+  case "$arg" in
+    -p|--print|-u|--urls)
+      print_only=true
+      ;;
+    *)
+      targets+=("$arg")
+      ;;
+  esac
+done
+
+find_latest_md() {
+  local cand=""
+  # First pass: look for .md files containing xvideos or video links in ., /tmp/xvids, ~/Downloads
+  for dir in "." "/tmp/xvids" "$HOME/Downloads"; do
+    if [ -d "$dir" ]; then
+      while IFS= read -r f; do
+        if [ -n "$f" ] && [ -f "$f" ]; then
+          if grep -q -E "xvideos[0-9]*\.(com|net|es)/(video[\.0-9_\/-]|prof-video-|search-video)" "$f" 2>/dev/null; then
+            echo "$f"
+            return 0
+          fi
+        fi
+      done < <(ls -t "$dir"/*.md 2>/dev/null)
+    fi
+  done
+
+  # Second pass: any .md file in ., /tmp/xvids, ~/Downloads
+  for dir in "." "/tmp/xvids" "$HOME/Downloads"; do
+    if [ -d "$dir" ]; then
+      cand="$(ls -t "$dir"/*.md 2>/dev/null | head -n 1)"
+      if [ -n "$cand" ] && [ -f "$cand" ]; then
+        echo "$cand"
+        return 0
+      fi
+    fi
+  done
+  return 1
+}
+
+if [ ${#targets[@]} -eq 0 ]; then
+  if [ ! -t 0 ]; then
+    targets=("-")
+  else
+    latest="$(find_latest_md)"
+    if [ -n "$latest" ]; then
+      echo "Using markdown file: $latest" >&2
+      targets=("$latest")
+    else
+      echo "Usage: $0 [--urls|-u|-p] <markdown_file|web_page_url>..." >&2
+      exit 1
+    fi
+  fi
 fi
 
-if [ ! -f "$1" ]; then
-  echo "Error: File '$1' not found." >&2
-  exit 1
-fi
+extract_target() {
+  local target="$1"
+  if [ "$target" = "-" ]; then
+    # Piped input from stdin
+    perl -0777 -e '
+      my %seen;
+      my $content = do { local $/; <> };
+      my @xvids;
+      while ($content =~ /\((https?:\/\/(?:www\.)?xvideos[0-9]*\.(?:com|net|es)\/(?:video[\.0-9_\/-]|prof-video-|search-video)[^\s\x22\x27\x60\)>]+)/gs) {
+        my $u = $1;
+        $u =~ s/\s+//g;
+        $u =~ s/[>\)\.,\x22\x27\x60]+$//;
+        next if $u =~ /\.(jpe?g|avif|webp|png|gif)$/i;
+        push @xvids, $u unless $seen{$u}++;
+      }
+      while ($content =~ /(?:^|[\s\x22\x27\x60<])(https?:\/\/(?:www\.)?xvideos[0-9]*\.(?:com|net|es)\/(?:video[\.0-9_\/-]|prof-video-|search-video)[^\s\x22\x27\x60\)>]+)/gs) {
+        my $u = $1;
+        $u =~ s/\s+//g;
+        $u =~ s/[>\)\.,\x22\x27\x60]+$//;
+        next if $u =~ /\.(jpe?g|avif|webp|png|gif)$/i;
+        push @xvids, $u unless $seen{$u}++;
+      }
+      if (@xvids) {
+        print "$_\n" for @xvids;
+        exit 0;
+      }
+      my @general;
+      while ($content =~ /\[[^\]]*\]\((https?:\/\/[^\s\x22\x27\x60\)>]+)/gs) {
+        my $u = $1;
+        $u =~ s/\s+//g;
+        $u =~ s/[>\)\.,\x22\x27\x60]+$//;
+        next if $u =~ /\.(jpe?g|png|gif|webp|svg|css|js)$/i;
+        push @general, $u unless $seen{$u}++;
+      }
+      while ($content =~ /(?:^|[\s\x22\x27\x60<])(https?:\/\/[^\s\x22\x27\x60\)>]+)/gs) {
+        my $u = $1;
+        $u =~ s/\s+//g;
+        $u =~ s/[>\)\.,\x22\x27\x60]+$//;
+        next if $u =~ /\.(jpe?g|png|gif|webp|svg|css|js)$/i;
+        push @general, $u unless $seen{$u}++;
+      }
+      print "$_\n" for @general;
+    ' -
+  elif [[ "$target" =~ ^https?:// ]]; then
+    # Remote web page or remote markdown file
+    local content
+    content="$(curl -sL -A "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" --connect-timeout 5 --max-time 15 "$target" 2>/dev/null)"
+    if [[ "$target" =~ \.(md|markdown)(\?.*)?$ ]]; then
+      perl -0777 -ne '
+        my %seen;
+        my @xvids;
+        while (/\((https?:\/\/(?:www\.)?xvideos[0-9]*\.(?:com|net|es)\/(?:video[\.0-9_\/-]|prof-video-|search-video)[^\s\x22\x27\x60\)>]+)/gs) {
+          my $u = $1;
+          $u =~ s/\s+//g;
+          $u =~ s/[>\)\.,\x22\x27\x60]+$//;
+          next if $u =~ /\.(jpe?g|avif|webp|png|gif)$/i;
+          push @xvids, $u unless $seen{$u}++;
+        }
+        while (/(?:^|[\s\x22\x27\x60<])(https?:\/\/(?:www\.)?xvideos[0-9]*\.(?:com|net|es)\/(?:video[\.0-9_\/-]|prof-video-|search-video)[^\s\x22\x27\x60\)>]+)/gs) {
+          my $u = $1;
+          $u =~ s/\s+//g;
+          $u =~ s/[>\)\.,\x22\x27\x60]+$//;
+          next if $u =~ /\.(jpe?g|avif|webp|png|gif)$/i;
+          push @xvids, $u unless $seen{$u}++;
+        }
+        if (@xvids) {
+          print "$_\n" for @xvids;
+          exit 0;
+        }
+        my @general;
+        while (/\[[^\]]*\]\((https?:\/\/[^\s\x22\x27\x60\)>]+)/gs) {
+          my $u = $1;
+          $u =~ s/\s+//g;
+          $u =~ s/[>\)\.,\x22\x27\x60]+$//;
+          next if $u =~ /\.(jpe?g|png|gif|webp|svg|css|js)$/i;
+          push @general, $u unless $seen{$u}++;
+        }
+        while (/(?:^|[\s\x22\x27\x60<])(https?:\/\/[^\s\x22\x27\x60\)>]+)/gs) {
+          my $u = $1;
+          $u =~ s/\s+//g;
+          $u =~ s/[>\)\.,\x22\x27\x60]+$//;
+          next if $u =~ /\.(jpe?g|png|gif|webp|svg|css|js)$/i;
+          push @general, $u unless $seen{$u}++;
+        }
+        print "$_\n" for @general;
+      ' <<< "$content"
+    else
+      # Live web page: extract video hrefs from HTML
+      perl -0777 -ne '
+        my %seen;
+        while (/href="(\/(?:video[\.0-9_\/-]|prof-video-|search-video)[^"\s>]+)"/g) {
+          my $u = "https://www.xvideos.com$1";
+          next if $u =~ /\.(jpe?g|avif|webp|png|gif)$/i;
+          print "$u\n" unless $seen{$u}++;
+        }
+        while (/href="(https?:\/\/(?:www\.)?xvideos[0-9]*\.(?:com|net|es)\/(?:video[\.0-9_\/-]|prof-video-|search-video)[^"\s>]+)"/g) {
+          my $u = $1;
+          next if $u =~ /\.(jpe?g|avif|webp|png|gif)$/i;
+          print "$u\n" unless $seen{$u}++;
+        }
+      ' <<< "$content"
+    fi
+  elif [ -f "$target" ]; then
+    # Local markdown or text file
+    perl -0777 -e '
+      my %seen;
+      my $content = do { local $/; <> };
+      my @xvids;
+      while ($content =~ /\((https?:\/\/(?:www\.)?xvideos[0-9]*\.(?:com|net|es)\/(?:video[\.0-9_\/-]|prof-video-|search-video)[^\s\x22\x27\x60\)>]+)/gs) {
+        my $u = $1;
+        $u =~ s/\s+//g;
+        $u =~ s/[>\)\.,\x22\x27\x60]+$//;
+        next if $u =~ /\.(jpe?g|avif|webp|png|gif)$/i;
+        push @xvids, $u unless $seen{$u}++;
+      }
+      while ($content =~ /(?:^|[\s\x22\x27\x60<])(https?:\/\/(?:www\.)?xvideos[0-9]*\.(?:com|net|es)\/(?:video[\.0-9_\/-]|prof-video-|search-video)[^\s\x22\x27\x60\)>]+)/gs) {
+        my $u = $1;
+        $u =~ s/\s+//g;
+        $u =~ s/[>\)\.,\x22\x27\x60]+$//;
+        next if $u =~ /\.(jpe?g|avif|webp|png|gif)$/i;
+        push @xvids, $u unless $seen{$u}++;
+      }
+      if (@xvids) {
+        print "$_\n" for @xvids;
+        exit 0;
+      }
+      my @general;
+      while ($content =~ /\[[^\]]*\]\((https?:\/\/[^\s\x22\x27\x60\)>]+)/gs) {
+        my $u = $1;
+        $u =~ s/\s+//g;
+        $u =~ s/[>\)\.,\x22\x27\x60]+$//;
+        next if $u =~ /\.(jpe?g|png|gif|webp|svg|css|js)$/i;
+        push @general, $u unless $seen{$u}++;
+      }
+      while ($content =~ /(?:^|[\s\x22\x27\x60<])(https?:\/\/[^\s\x22\x27\x60\)>]+)/gs) {
+        my $u = $1;
+        $u =~ s/\s+//g;
+        $u =~ s/[>\)\.,\x22\x27\x60]+$//;
+        next if $u =~ /\.(jpe?g|png|gif|webp|svg|css|js)$/i;
+        push @general, $u unless $seen{$u}++;
+      }
+      print "$_\n" for @general;
+    ' "$target"
+  else
+    echo "Error: Target '$target' not found." >&2
+  fi
+}
 
-# 2. Extract only direct video URLs (matching /video or /prof-video patterns), clean whitespace, and pass to yt-dlp
-perl -0777 -ne 'while(/\((https?:\/\/(?:www\.)?xvideos\.com\/(?:video|prof-video-)[^)]+)\)/gs){ ($u=$1)=~s/\s+//g; print "$u\n" unless $u =~ /\.jpe?g$/i; }' "$1" | yt-dlp --batch-file -
+extract_stream() {
+  for t in "${targets[@]}"; do
+    extract_target "$t"
+  done
+}
+
+if [ "$print_only" = true ]; then
+  extract_stream
+else
+  extract_stream | yt-dlp --batch-file -
+fi

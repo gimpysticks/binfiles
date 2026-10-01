@@ -1,0 +1,275 @@
+#!/usr/bin/env bash
+
+# cmc: Clipboard Media Clear
+# Play clipboard URL(s), file path(s), or markdown playlist(s) (.md) in mpv full-screen, clearing terminal before & after.
+# Supports MarkDownload clips, xvideos search results, YouTube, and local media files.
+# If no arguments are provided and clipboard is empty or non-media, automatically checks for MarkDownload .md clips in ., /tmp/xvids, or ~/Downloads.
+
+export PATH="$HOME/bin:$HOME/.local/bin:$PATH"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export PATH="$SCRIPT_DIR:$PATH"
+
+# Extract and deduplicate URLs from text or files (matching extract_URLS_frm_md logic)
+extract_urls() {
+    perl -0777 -e '
+        my %seen;
+        my $content = do { local $/; <> };
+        # First priority: direct xvideos video URLs (matching extract_URLS_frm_md)
+        my @xvids;
+        while ($content =~ /\((https?:\/\/(?:www\.)?xvideos[0-9]*\.(?:com|net|es)\/(?:video[\.0-9_\/-]|prof-video-|search-video)[^\s\x22\x27\x60\)>]+)/gs) {
+            my $u = $1;
+            $u =~ s/\s+//g;
+            $u =~ s/[>\)\.,\x22\x27\x60]+$//;
+            next if $u =~ /\.(jpe?g|avif|webp|png|gif)$/i;
+            push @xvids, $u unless $seen{$u}++;
+        }
+        while ($content =~ /(?:^|[\s\x22\x27\x60<])(https?:\/\/(?:www\.)?xvideos[0-9]*\.(?:com|net|es)\/(?:video[\.0-9_\/-]|prof-video-|search-video)[^\s\x22\x27\x60\)>]+)/gs) {
+            my $u = $1;
+            $u =~ s/\s+//g;
+            $u =~ s/[>\)\.,\x22\x27\x60]+$//;
+            next if $u =~ /\.(jpe?g|avif|webp|png|gif)$/i;
+            push @xvids, $u unless $seen{$u}++;
+        }
+        if (@xvids) {
+            print "$_\n" for @xvids;
+            exit 0;
+        }
+        # Second priority: general media URLs, skipping image/static asset files
+        my @general;
+        while ($content =~ /\[[^\]]*\]\((https?:\/\/[^\s\x22\x27\x60\)>]+)/gs) {
+            my $u = $1;
+            $u =~ s/\s+//g;
+            $u =~ s/[>\)\.,\x22\x27\x60]+$//;
+            next if $u =~ /\.(jpe?g|png|gif|webp|svg|css|js)$/i;
+            push @general, $u unless $seen{$u}++;
+        }
+        while ($content =~ /(?:^|[\s\x22\x27\x60<])(https?:\/\/[^\s\x22\x27\x60\)>]+)/gs) {
+            my $u = $1;
+            $u =~ s/\s+//g;
+            $u =~ s/[>\)\.,\x22\x27\x60]+$//;
+            next if $u =~ /\.(jpe?g|png|gif|webp|svg|css|js)$/i;
+            push @general, $u unless $seen{$u}++;
+        }
+        print "$_\n" for @general;
+    ' "$@" 2>/dev/null
+}
+
+find_latest_md() {
+    local cand=""
+    # First pass: look for .md files containing xvideos or video links in ., /tmp/xvids, ~/Downloads
+    for dir in "." "/tmp/xvids" "$HOME/Downloads"; do
+        if [ -d "$dir" ]; then
+            while IFS= read -r f; do
+                if [ -n "$f" ] && [ -f "$f" ]; then
+                    if grep -q -E "xvideos[0-9]*\.(com|net|es)/(video[\.0-9_\/-]|prof-video-|search-video)" "$f" 2>/dev/null; then
+                        echo "$f"
+                        return 0
+                    fi
+                fi
+            done < <(ls -t "$dir"/*.md 2>/dev/null)
+        fi
+    done
+
+    # Second pass: any .md file in ., /tmp/xvids, ~/Downloads
+    for dir in "." "/tmp/xvids" "$HOME/Downloads"; do
+        if [ -d "$dir" ]; then
+            cand="$(ls -t "$dir"/*.md 2>/dev/null | head -n 1)"
+            if [ -n "$cand" ] && [ -f "$cand" ]; then
+                echo "$cand"
+                return 0
+            fi
+        fi
+    done
+    return 1
+}
+
+# Separate CLI options (-*) from positional arguments
+mpv_opts=()
+cli_args=()
+for arg in "$@"; do
+    if [[ "$arg" == -* ]]; then
+        mpv_opts+=("$arg")
+    else
+        cli_args+=("$arg")
+    fi
+done
+
+items=()
+existing_playlist=""
+
+process_target() {
+    local target="$1"
+    local exp_target="${target/#~/$HOME}"
+
+    if [ -f "$exp_target" ]; then
+        if [[ "$exp_target" =~ \.(m3u|m3u8|pls)$ ]]; then
+            while IFS= read -r line || [[ -n "$line" ]]; do
+                line="${line%$'\r'}"
+                [[ -n "$line" && "$line" != \#* ]] && items+=("$line")
+            done < "$exp_target"
+        elif [[ "$exp_target" =~ \.(md|markdown)$ ]] || grep -q -E "https?://" "$exp_target" 2>/dev/null; then
+            if command -v extract_URLS_frm_md &>/dev/null; then
+                while IFS= read -r url; do
+                    [[ -n "$url" ]] && items+=("$url")
+                done < <(extract_URLS_frm_md -u "$exp_target" 2>/dev/null)
+            fi
+            if [ ${#items[@]} -eq 0 ]; then
+                while IFS= read -r url; do
+                    [[ -n "$url" ]] && items+=("$url")
+                done < <(extract_urls "$exp_target")
+            fi
+        else
+            items+=("$exp_target")
+        fi
+    elif [[ "$target" =~ ^https?:// ]]; then
+        if [[ "$target" =~ ^https?://(www\.)?xvideos[0-9]*\.(com|net|es)/(\?k=|tags/|c/|channels/|porn-index/|amateurs-index/|favorite/|best/) ]]; then
+            local md_clip
+            md_clip="$(find_latest_md)"
+            if [ -n "$md_clip" ]; then
+                echo "Using MarkDownload playlist: $md_clip" >&2
+                if command -v extract_URLS_frm_md &>/dev/null; then
+                    while IFS= read -r url; do
+                        [[ -n "$url" ]] && items+=("$url")
+                    done < <(extract_URLS_frm_md -u "$md_clip" 2>/dev/null)
+                fi
+                if [ ${#items[@]} -eq 0 ]; then
+                    while IFS= read -r url; do
+                        [[ -n "$url" ]] && items+=("$url")
+                    done < <(extract_urls "$md_clip")
+                fi
+            elif command -v extract_URLS_frm_md &>/dev/null; then
+                while IFS= read -r url; do
+                    [[ -n "$url" ]] && items+=("$url")
+                done < <(extract_URLS_frm_md -u "$target" 2>/dev/null)
+            fi
+        elif [[ "$target" =~ \.(md|markdown)(\?.*)?$ ]]; then
+            if command -v extract_URLS_frm_md &>/dev/null; then
+                while IFS= read -r url; do
+                    [[ -n "$url" ]] && items+=("$url")
+                done < <(extract_URLS_frm_md -u "$target" 2>/dev/null)
+            fi
+            if [ ${#items[@]} -eq 0 ]; then
+                local md_content
+                md_content="$(curl -fsSL --connect-timeout 5 --max-time 15 "$target" 2>/dev/null)"
+                while IFS= read -r url; do
+                    [[ -n "$url" ]] && items+=("$url")
+                done < <(echo "$md_content" | extract_urls)
+            fi
+        else
+            items+=("$target")
+        fi
+    fi
+}
+
+# 1. Piped input (stdin)
+if [ ! -t 0 ]; then
+    input_text="$(cat)"
+    while IFS= read -r url; do
+        [[ -n "$url" ]] && items+=("$url")
+    done < <(echo "$input_text" | extract_urls)
+
+# 2. Positional CLI arguments
+elif [ ${#cli_args[@]} -gt 0 ]; then
+    if [ ${#cli_args[@]} -eq 1 ] && [ -f "${cli_args[0]/#~/$HOME}" ] && [[ "${cli_args[0]}" =~ \.(m3u|m3u8|pls)$ ]]; then
+        existing_playlist="${cli_args[0]/#~/$HOME}"
+    else
+        for arg in "${cli_args[@]}"; do
+            process_target "$arg"
+        done
+    fi
+
+# 3. No arguments, inspect clipboard or auto-detect MarkDownload clip
+else
+    clip_text=""
+    if command -v wl-paste &>/dev/null; then clip_text="$(wl-paste 2>/dev/null)"; fi
+    if [ -z "$clip_text" ] && command -v xclip &>/dev/null; then clip_text="$(xclip -o -selection clipboard 2>/dev/null)"; fi
+    if [ -z "$clip_text" ] && command -v xsel &>/dev/null; then clip_text="$(xsel -b -o 2>/dev/null)"; fi
+
+    trimmed_clip="${clip_text#"${clip_text%%[![:space:]]*}"}"
+    trimmed_clip="${trimmed_clip%"${trimmed_clip##*[![:space:]]}"}"
+    exp_clip="${trimmed_clip/#~/$HOME}"
+
+    # If clipboard is a local file
+    if [ -f "$exp_clip" ]; then
+        if [[ "$exp_clip" =~ \.(m3u|m3u8|pls)$ ]]; then
+            existing_playlist="$exp_clip"
+        else
+            process_target "$exp_clip"
+        fi
+
+    # If clipboard has xvideos video links or markdown links
+    elif echo "$clip_text" | grep -q -E "xvideos[0-9]*\.(com|net|es)/(video[\.0-9_\/-]|prof-video-|search-video)|\[.+\]\(https?://"; then
+        while IFS= read -r url; do
+            [[ -n "$url" ]] && items+=("$url")
+        done < <(echo "$clip_text" | extract_urls)
+
+    # If clipboard has an xvideos search or listing URL
+    elif [[ "$trimmed_clip" =~ ^https?://(www\.)?xvideos[0-9]*\.(com|net|es)/(\?k=|tags/|c/|channels/|porn-index/|amateurs-index/|favorite/|best/) ]]; then
+        latest_clip="$(find_latest_md)"
+        if [ -n "$latest_clip" ]; then
+            echo "Using MarkDownload playlist: $latest_clip" >&2
+            if command -v extract_URLS_frm_md &>/dev/null; then
+                while IFS= read -r url; do
+                    [[ -n "$url" ]] && items+=("$url")
+                done < <(extract_URLS_frm_md -u "$latest_clip" 2>/dev/null)
+            fi
+            if [ ${#items[@]} -eq 0 ]; then
+                while IFS= read -r url; do
+                    [[ -n "$url" ]] && items+=("$url")
+                done < <(extract_urls "$latest_clip")
+            fi
+        elif command -v extract_URLS_frm_md &>/dev/null; then
+            while IFS= read -r url; do
+                [[ -n "$url" ]] && items+=("$url")
+            done < <(extract_URLS_frm_md -u "$trimmed_clip" 2>/dev/null)
+        fi
+
+    # If clipboard has general web URLs
+    elif echo "$clip_text" | grep -q -E "https?://"; then
+        while IFS= read -r url; do
+            [[ -n "$url" ]] && items+=("$url")
+        done < <(echo "$clip_text" | extract_urls)
+
+    # Clipboard is empty, command line snippet, or non-media text -> auto-detect MarkDownload clip
+    else
+        latest_clip="$(find_latest_md)"
+        if [ -n "$latest_clip" ]; then
+            echo "Using MarkDownload playlist: $latest_clip" >&2
+            if command -v extract_URLS_frm_md &>/dev/null; then
+                while IFS= read -r url; do
+                    [[ -n "$url" ]] && items+=("$url")
+                done < <(extract_URLS_frm_md -u "$latest_clip" 2>/dev/null)
+            fi
+            if [ ${#items[@]} -eq 0 ]; then
+                while IFS= read -r url; do
+                    [[ -n "$url" ]] && items+=("$url")
+                done < <(extract_urls "$latest_clip")
+            fi
+        fi
+    fi
+fi
+
+if [ -z "$existing_playlist" ] && [ ${#items[@]} -eq 0 ]; then
+    echo "cmc: clipboard/input is empty or no valid URLs/media found" >&2
+    exit 1
+fi
+
+temp_playlist=""
+if [[ -n "$existing_playlist" ]]; then
+    playlist_target="$existing_playlist"
+else
+    temp_playlist="$(mktemp /tmp/cmc_playlist.XXXXXX.m3u)"
+    printf '%s\n' "${items[@]}" > "$temp_playlist"
+    playlist_target="$temp_playlist"
+fi
+
+cleanup() {
+    [[ -n "$temp_playlist" && -f "$temp_playlist" ]] && rm -f "$temp_playlist"
+}
+trap cleanup EXIT INT TERM HUP
+
+clear
+mpv --fs --ytdl-raw-options-append=yes-playlist= "${mpv_opts[@]}" --playlist="$playlist_target"
+ret=$?
+clear
+exit $ret
