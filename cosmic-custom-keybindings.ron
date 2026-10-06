@@ -121,8 +121,8 @@
             Super,
         ],
         key: "e",
-        description: Some("Gmail"),
-    ): Spawn("gtk-launch gmail"),
+        description: Some("Thunderbird"),
+    ): Spawn("gtk-launch thunderbird"),
     (
         modifiers: [
             Super,
@@ -312,4 +312,19 @@
         description: Some("Monitor Off"),
     ): Spawn("/home/sticks/bin/monitor-off"),
     (modifiers: [], key: "F12", description: Some("TildaZ_0")): Spawn("/home/sticks/.local/opt/tildaz/tildaz --toggle 0"),
+    (
+        modifiers: [
+            Super,
+        ],
+        key: "l",
+        description: Some("Lock Screen"),
+    ): Spawn("loginctl lock-session"),
+    (
+        modifiers: [
+            Super,
+        ],
+        key: "Escape",
+        description: Some("Lock Screen"),
+    ): Spawn("loginctl lock-session"),
 }
+
