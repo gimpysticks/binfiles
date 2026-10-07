@@ -14,3 +14,4 @@ reinstall_prep_*/reinstall_*.log
 session-archives/**/*.log
 *.bak
 *.log
+obs-backup_*.tar.gz

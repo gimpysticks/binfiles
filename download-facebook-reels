@@ -1,0 +1,217 @@
+#!/usr/bin/env bash
+#
+# download-facebook-reels - Download Facebook Reels / videos using yt-dlp
+#
+set -euo pipefail
+
+DEFAULT_DIR="${TARGET_DIR:-$HOME/Videos}"
+DEFAULT_FORMAT="bv*+ba/b"
+
+OUT_DIR="$DEFAULT_DIR"
+FORMAT="$DEFAULT_FORMAT"
+BROWSER=""
+FORCE_CLIPBOARD=false
+DRY_RUN=false
+URLS=()
+
+usage() {
+    cat <<EOF
+Usage: $(basename "$0") [OPTIONS] [URL(s)... | file.txt]
+
+Download Facebook Reels and videos using yt-dlp.
+Accepts a single URL, multiple URLs, a file containing URLs, piped input,
+or automatically reads URLs from your clipboard if none are provided.
+
+Arguments:
+  URL(s)...           One or more Facebook Reel/video URLs
+  file.txt            File containing URLs (one per line, # comments ignored)
+
+Options:
+  -d, --dir DIR       Target download directory (default: ~/Videos)
+  -b, --browser NAME  Browser for session cookies (e.g. firefox, chrome, brave)
+  -f, --format FMT    Format selector for yt-dlp (default: bv*+ba/b)
+  -a, --batch-file F  Explicit file containing URLs
+  -c, --clipboard     Explicitly read URLs from clipboard
+  -s, --simulate      Simulate download (dry-run without saving files)
+  -h, --help          Show this help message
+
+Examples:
+  $(basename "$0") https://www.facebook.com/share/r/19UMGLwCzJ/
+  $(basename "$0") https://www.facebook.com/reel/123 https://www.facebook.com/reel/456
+  $(basename "$0") -d ~/Downloads urls.txt
+  cat urls.txt | $(basename "$0")
+  $(basename "$0")
+EOF
+    exit 0
+}
+
+# Function to read URLs from a file
+read_urls_from_file() {
+    local file="$1"
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        line="$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+        [[ -n "$line" && ! "$line" =~ ^# ]] && URLS+=("$line")
+    done < "$file"
+}
+
+# Function to read URLs from stdin
+read_urls_from_stdin() {
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        line="$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+        [[ -n "$line" && ! "$line" =~ ^# ]] && URLS+=("$line")
+    done
+}
+
+# Parse options
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -h|--help)
+            usage
+            ;;
+        -d|--dir|--output-dir)
+            OUT_DIR="$2"
+            shift 2
+            ;;
+        -b|--browser)
+            BROWSER="$2"
+            shift 2
+            ;;
+        -f|--format)
+            FORMAT="$2"
+            shift 2
+            ;;
+        -a|--batch-file)
+            if [[ -f "$2" ]]; then
+                read_urls_from_file "$2"
+            else
+                echo "Error: Batch file '$2' not found." >&2
+                exit 1
+            fi
+            shift 2
+            ;;
+        -c|--clipboard)
+            FORCE_CLIPBOARD=true
+            shift
+            ;;
+        -s|--simulate|--dry-run)
+            DRY_RUN=true
+            shift
+            ;;
+        --)
+            shift
+            break
+            ;;
+        -*)
+            echo "Error: Unknown option $1" >&2
+            echo "Run '$(basename "$0") --help' for usage." >&2
+            exit 1
+            ;;
+        *)
+            if [[ "$1" == "-" ]]; then
+                read_urls_from_stdin
+            elif [[ -f "$1" ]]; then
+                read_urls_from_file "$1"
+            else
+                URLS+=("$1")
+            fi
+            shift
+            ;;
+    esac
+done
+
+# Read remaining arguments after --
+while [[ $# -gt 0 ]]; do
+    if [[ "$1" == "-" ]]; then
+        read_urls_from_stdin
+    elif [[ -f "$1" ]]; then
+        read_urls_from_file "$1"
+    else
+        URLS+=("$1")
+    fi
+    shift
+done
+
+# Check yt-dlp dependency
+if ! command -v yt-dlp >/dev/null 2>&1; then
+    echo "Error: yt-dlp is not installed or not in PATH." >&2
+    exit 1
+fi
+
+get_clipboard() {
+    if [[ -n "${WAYLAND_DISPLAY:-}" ]] && command -v wl-paste >/dev/null 2>&1; then
+        wl-paste 2>/dev/null || true
+    elif command -v xclip >/dev/null 2>&1; then
+        xclip -o -selection clipboard 2>/dev/null || true
+    elif command -v xsel >/dev/null 2>&1; then
+        xsel -b 2>/dev/null || true
+    fi
+}
+
+# If no URLs provided via args, check pipe (stdin) or clipboard
+if [[ ${#URLS[@]} -eq 0 ]]; then
+    if [ ! -t 0 ] && [ "$FORCE_CLIPBOARD" = false ]; then
+        read_urls_from_stdin
+    else
+        clip_content="$(get_clipboard)"
+        if [[ -n "$clip_content" ]]; then
+            while IFS= read -r line; do
+                line="$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+                if [[ "$line" =~ ^https?:// ]] || [[ "$line" =~ facebook\.com ]] || [[ "$line" =~ fb\.watch ]]; then
+                    URLS+=("$line")
+                fi
+            done <<< "$clip_content"
+        fi
+
+        if [[ ${#URLS[@]} -gt 0 ]]; then
+            echo "📋 Detected ${#URLS[@]} URL(s) from clipboard."
+        else
+            echo "Error: No URLs provided and no URLs found on clipboard." >&2
+            echo "Run '$(basename "$0") --help' for usage." >&2
+            exit 1
+        fi
+    fi
+fi
+
+# Ensure URLs are not empty
+if [[ ${#URLS[@]} -eq 0 ]]; then
+    echo "Error: No valid URLs found to download." >&2
+    exit 1
+fi
+
+# Normalize URLs (add https:// if missing for Facebook domains)
+NORMALIZED_URLS=()
+for u in "${URLS[@]}"; do
+    if [[ "$u" =~ ^https?:// ]]; then
+        NORMALIZED_URLS+=("$u")
+    elif [[ "$u" =~ ^(www\.)?facebook\.com || "$u" =~ ^fb\.watch ]]; then
+        NORMALIZED_URLS+=("https://$u")
+    else
+        NORMALIZED_URLS+=("$u")
+    fi
+done
+URLS=("${NORMALIZED_URLS[@]}")
+
+mkdir -p "$OUT_DIR"
+echo "📂 Destination: $OUT_DIR"
+[[ -n "$BROWSER" ]] && echo "🍪 Using browser session cookies: $BROWSER"
+echo "⬇️  Downloading ${#URLS[@]} Reel(s)..."
+
+YTDLP_CMD=(
+    yt-dlp
+    -P "$OUT_DIR"
+    -f "$FORMAT"
+    --merge-output-format mp4
+    -o "%(title).80B [%(id)s].%(ext)s"
+)
+
+if [[ -n "$BROWSER" ]]; then
+    YTDLP_CMD+=(--cookies-from-browser "$BROWSER")
+fi
+
+if [[ "$DRY_RUN" = true ]]; then
+    YTDLP_CMD+=(--simulate)
+fi
+
+"${YTDLP_CMD[@]}" "${URLS[@]}"
+
+echo "✅ Download complete! Files saved to: $OUT_DIR"

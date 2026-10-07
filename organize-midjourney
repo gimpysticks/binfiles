@@ -1,0 +1,137 @@
+#!/usr/bin/env python3
+"""
+Organize files in the Midjourney folder by Year and Month.
+Format: <Year>/<MM - MonthName>/
+
+Only organizes regular files directly located in the target folder.
+Existing subfolders and other directories are left untouched.
+"""
+
+import os
+import sys
+import datetime
+import shutil
+from collections import defaultdict
+
+DEFAULT_TARGET_DIR = "/media/sticks/MidJourney1/Midjourney"
+
+MONTH_NAMES = {
+    1: "01 - January",
+    2: "02 - February",
+    3: "03 - March",
+    4: "04 - April",
+    5: "05 - May",
+    6: "06 - June",
+    7: "07 - July",
+    8: "08 - August",
+    9: "09 - September",
+    10: "10 - October",
+    11: "11 - November",
+    12: "12 - December",
+}
+
+
+def organize_folder(target_dir: str):
+    target_dir = os.path.abspath(target_dir)
+
+    if not os.path.exists(target_dir):
+        print(f"Error: Target directory does not exist: {target_dir}", file=sys.stderr)
+        sys.exit(1)
+
+    if not os.path.isdir(target_dir):
+        print(f"Error: Target path is not a directory: {target_dir}", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"Target directory: {target_dir}")
+
+    try:
+        entries = os.listdir(target_dir)
+    except PermissionError as e:
+        print(f"Error reading directory: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    files_to_move = []
+    skipped_entries = []
+
+    for entry in entries:
+        src = os.path.join(target_dir, entry)
+        if os.path.islink(src):
+            skipped_entries.append((entry, "symlink"))
+        elif os.path.isdir(src):
+            skipped_entries.append((entry, "directory"))
+        elif os.path.isfile(src):
+            files_to_move.append(entry)
+        else:
+            skipped_entries.append((entry, "special file"))
+
+    if not files_to_move:
+        print("No loose files found in target directory to organize.")
+        print(f"Existing directories preserved ({len(skipped_entries)} items).")
+        return
+
+    print(f"Found {len(files_to_move)} file(s) to organize.")
+    if skipped_entries:
+        print(f"Preserving {len(skipped_entries)} existing directory/item(s) untouched.")
+
+    moved_counts = defaultdict(int)
+    errors = []
+
+    for i, entry in enumerate(files_to_move, 1):
+        src_path = os.path.join(target_dir, entry)
+        try:
+            stat = os.stat(src_path)
+            dt = datetime.datetime.fromtimestamp(stat.st_mtime)
+            year_str = str(dt.year)
+            month_str = MONTH_NAMES.get(dt.month, f"{dt.month:02d}")
+
+            dst_dir = os.path.join(target_dir, year_str, month_str)
+            os.makedirs(dst_dir, exist_ok=True)
+
+            dst_path = os.path.join(dst_dir, entry)
+            if os.path.exists(dst_path):
+                # Handle rare collision safely by preserving both
+                base, ext = os.path.splitext(entry)
+                timestamp_suffix = dt.strftime("%Y%m%d_%H%M%S")
+                dst_path = os.path.join(dst_dir, f"{base}_{timestamp_suffix}{ext}")
+                if os.path.exists(dst_path):
+                    errors.append(f"Destination already exists, skipped: {entry}")
+                    continue
+
+            shutil.move(src_path, dst_path)
+            moved_counts[(year_str, month_str)] += 1
+
+            if i % 1000 == 0 or i == len(files_to_move):
+                print(f"Progress: {i}/{len(files_to_move)} files processed...")
+        except Exception as e:
+            errors.append(f"Error moving {entry}: {e}")
+
+    print("\n--- Summary ---")
+    total_moved = sum(moved_counts.values())
+    print(f"Total files organized: {total_moved}")
+    if errors:
+        print(f"Encountered {len(errors)} error(s):")
+        for err in errors[:20]:
+            print(f"  {err}")
+    else:
+        print("Completed successfully with 0 errors!")
+
+    if moved_counts:
+        print("\nBreakdown by Year and Month:")
+        for (yr, mo) in sorted(moved_counts.keys()):
+            print(f"  {yr}/{mo}: {moved_counts[(yr, mo)]} file(s)")
+
+
+def main():
+    if len(sys.argv) > 1 and sys.argv[1] in ("-h", "--help"):
+        print(__doc__.strip())
+        print(f"\nDefault directory: {DEFAULT_TARGET_DIR}")
+        print("Usage:")
+        print("  organize-midjourney [DIR]")
+        return
+
+    target_dir = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_TARGET_DIR
+    organize_folder(target_dir)
+
+
+if __name__ == "__main__":
+    main()

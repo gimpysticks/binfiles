@@ -28,7 +28,7 @@ mkdir -p "$BACKUP_DIR"
 
 # Create backup
 echo -e "${YELLOW}Creating OBS backup...${NC}"
-tar -czf "$BACKUP_FILE" -C "$HOME/.config" obs-studio
+tar -chzf "$BACKUP_FILE" -C "$HOME/.config" obs-studio
 
 if [ $? -eq 0 ]; then
     BACKUP_SIZE=$(du -h "$BACKUP_FILE" | cut -f1)
