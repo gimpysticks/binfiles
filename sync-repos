@@ -1,0 +1,894 @@
+#!/usr/bin/env python3
+"""
+sync-repos: Intelligent Git Repository Analysis, Commit & Push Tool
+
+Workflow:
+  1. Analyzes Git repositories (current repo, specific target, or all user repos).
+  2. Inspects working tree changes (untracked, modified, staged, deleted, mode changes).
+  3. Synthesizes high-signal, contextual commit messages matching the user's
+     conventional commit style (feat:, docs:, config:, fix:, chore:).
+  4. Stages all changed files (git add -A).
+  5. Commits with synthesized or edited message (with interactive review/editor support).
+  6. Safely pulls and pushes changes to their respective remotes.
+
+Author: Antigravity Pair Programmer
+"""
+
+import argparse
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
+# Terminal color formatting
+RESET = "\033[0m"
+BOLD = "\033[1m"
+DIM = "\033[2m"
+RED = "\033[31m"
+GREEN = "\033[32m"
+YELLOW = "\033[33m"
+BLUE = "\033[34m"
+MAGENTA = "\033[35m"
+CYAN = "\033[36m"
+WHITE = "\033[37m"
+
+# Directories to ignore during discovery to ensure instant scanning
+DEFAULT_IGNORE_DIRS = {
+    ".cache",
+    ".Trash",
+    ".gemini",
+    ".cargo",
+    ".rustup",
+    ".npm",
+    ".yarn",
+    ".virtualenvs",
+    ".venv",
+    "venv",
+    "node_modules",
+    ".mozilla",
+    ".thunderbird",
+    ".var",
+    ".steam",
+    ".wine",
+    ".local/share/Trash",
+    ".local/share/nvim/lazy",
+    ".local/share/nvim/mason",
+    ".local/share/flatpak",
+    "snap",
+    "Snap",
+}
+
+
+def run_git(cmd: List[str], cwd: str, check: bool = False) -> Tuple[int, str, str]:
+    """Execute a git command in a specific working directory."""
+    full_cmd = ["git", "-C", cwd] + cmd
+    try:
+        res = subprocess.run(
+            full_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=check,
+        )
+        return res.returncode, res.stdout, res.stderr.strip()
+    except subprocess.CalledProcessError as e:
+        return e.returncode, e.stdout or "", (e.stderr or "").strip()
+    except Exception as e:
+        return 1, "", str(e)
+
+
+def detect_github_username() -> Optional[str]:
+    """Detect current user GitHub username from gh CLI or git config."""
+    try:
+        res = subprocess.run(
+            ["gh", "api", "user", "--jq", ".login"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=3,
+        )
+        if res.returncode == 0 and res.stdout.strip():
+            return res.stdout.strip()
+    except Exception:
+        pass
+
+    try:
+        res = subprocess.run(
+            ["git", "config", "--global", "user.name"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if res.returncode == 0 and res.stdout.strip():
+            return res.stdout.strip()
+    except Exception:
+        pass
+
+    return "gimpysticks"
+
+
+def find_git_repositories(base_dir: str) -> List[str]:
+    """Search recursively for git repositories with in-place tree pruning."""
+    repos = []
+    base_path = Path(base_dir).resolve()
+
+    # Priority well-known user repository paths
+    known_user_repos = [
+        str(Path.home() / "bin"),
+        str(Path.home() / "zets"),
+        str(Path.home() / "Documents" / "Prompt_library"),
+        str(Path.home() / "Documents" / "gimpysticks_canonical_prompt_system"),
+        str(Path.home() / "repos" / "ai-art-challenges"),
+        str(Path.home() / "repos" / "nvim-config"),
+        str(Path.home() / ".config" / "variety"),
+        str(Path.home() / ".config" / "nvim"),
+    ]
+
+    for kr in known_user_repos:
+        if (Path(kr) / ".git").exists():
+            repos.append(kr)
+
+    # Search for additional repos under base_dir
+    for root, dirs, _ in os.walk(str(base_path), topdown=True):
+        rel_root = os.path.relpath(root, str(base_path))
+
+        # Check ignored roots
+        if any(ignored in root or (rel_root != "." and rel_root.startswith(ignored)) for ignored in DEFAULT_IGNORE_DIRS):
+            dirs[:] = []
+            continue
+
+        # Prune build/cache/package directories
+        dirs[:] = [
+            d for d in dirs
+            if d not in DEFAULT_IGNORE_DIRS
+            and not d.startswith(".cache")
+            and not d.startswith(".npm")
+            and not (d.startswith(".") and d in {".cargo", ".rustup", ".gemini", ".Trash"})
+        ]
+
+        if ".git" in dirs:
+            if root not in repos:
+                repos.append(root)
+            dirs.remove(".git")
+            dirs[:] = []
+
+    return sorted(list(set(repos)))
+
+
+def inspect_repository(repo_path: str) -> Dict[str, Any]:
+    """Inspect repository branch, remotes, dirty files, and safety flags."""
+    info: Dict[str, Any] = {
+        "path": repo_path,
+        "name": os.path.basename(repo_path),
+        "remotes": {},
+        "has_remotes": False,
+        "is_user_owned": False,
+        "branch": "",
+        "upstream": "",
+        "uncommitted_files": [],
+        "ahead": 0,
+        "behind": 0,
+        "is_rebasing": False,
+        "is_merging": False,
+        "error": None,
+    }
+
+    # 1. Check safety status (rebase or merge in progress)
+    code, git_dir_out, _ = run_git(["rev-parse", "--git-dir"], repo_path)
+    git_dir = git_dir_out.strip()
+    if code == 0 and git_dir:
+        abs_git_dir = os.path.join(repo_path, git_dir) if not os.path.isabs(git_dir) else git_dir
+        if (
+            os.path.exists(os.path.join(abs_git_dir, "rebase-merge"))
+            or os.path.exists(os.path.join(abs_git_dir, "rebase-apply"))
+        ):
+            info["is_rebasing"] = True
+        if os.path.exists(os.path.join(abs_git_dir, "MERGE_HEAD")):
+            info["is_merging"] = True
+
+    # 2. Remotes
+    code, stdout, _ = run_git(["remote", "-v"], repo_path)
+    if code == 0 and stdout:
+        info["has_remotes"] = True
+        for line in stdout.splitlines():
+            parts = line.split()
+            if len(parts) >= 2:
+                r_name, r_url = parts[0], parts[1]
+                r_type = parts[2].strip("()") if len(parts) > 2 else "both"
+                if r_name not in info["remotes"]:
+                    info["remotes"][r_name] = {"fetch": "", "push": ""}
+                info["remotes"][r_name][r_type] = r_url
+
+    # 3. Branch
+    code, stdout, _ = run_git(["symbolic-ref", "--short", "HEAD"], repo_path)
+    stdout_str = stdout.strip()
+    if code == 0 and stdout_str:
+        info["branch"] = stdout_str
+    else:
+        code, stdout2, _ = run_git(["rev-parse", "--short", "HEAD"], repo_path)
+        info["branch"] = stdout2.strip() if code == 0 else "HEAD (detached)"
+
+    # 4. Upstream tracking & ahead/behind
+    code, stdout, _ = run_git(["rev-parse", "--abbrev-ref", "@{u}"], repo_path)
+    stdout_str = stdout.strip()
+    if code == 0 and stdout_str:
+        info["upstream"] = stdout_str
+        code2, stdout2, _ = run_git(["rev-list", "--left-right", "--count", "HEAD...@{u}"], repo_path)
+        if code2 == 0 and stdout2.strip():
+            parts = stdout2.strip().split()
+            if len(parts) == 2:
+                info["ahead"] = int(parts[0])
+                info["behind"] = int(parts[1])
+
+    # 5. Changes (porcelain v1) - Preserve leading column spacing!
+    code, stdout, _ = run_git(["status", "--porcelain=v1", "-uall"], repo_path)
+    if code == 0 and stdout:
+        info["uncommitted_files"] = [line.rstrip("\r\n") for line in stdout.splitlines() if line.strip()]
+
+    return info
+
+
+def extract_file_semantics(repo_path: str, filepath: str, status_code: str) -> Dict[str, Any]:
+    """Analyze a single file change to extract semantic category, title, or docstring."""
+    full_path = os.path.join(repo_path, filepath)
+    basename = os.path.basename(filepath)
+    name_no_ext, ext = os.path.splitext(basename)
+
+    res = {
+        "fn": filepath,
+        "basename": basename,
+        "code": status_code,
+        "cat": "other",
+        "desc": "",
+    }
+
+    if "D" in status_code:
+        res["cat"] = "deleted"
+        res["desc"] = f"remove {basename}"
+        return res
+
+    # Check for permission/mode-only changes
+    if os.path.exists(full_path):
+        code, diff_out, _ = run_git(["diff", filepath], repo_path)
+        if "old mode" in diff_out and "new mode" in diff_out and "@@" not in diff_out:
+            res["cat"] = "mode_change"
+            res["desc"] = f"update execution permissions for {basename}"
+            return res
+
+    # Markdown documentation or prompt archives
+    if ext == ".md" and os.path.exists(full_path):
+        res["cat"] = "doc"
+        try:
+            with open(full_path, "r", errors="ignore") as f:
+                for line in f:
+                    line = line.strip()
+                    if line.startswith("# "):
+                        title = line[2:].strip()
+                        title = re.sub(r"\[([^\]]+)\]\([^\)]+\)", r"\1", title)
+                        title = re.sub(r"—.*$", "", title).strip()
+                        res["desc"] = title
+                        return res
+        except Exception:
+            pass
+        res["desc"] = name_no_ext.replace("_", " ").replace("-", " ")
+        return res
+
+    # Shell scripts, Python scripts, CLI tools
+    if ext in ("", ".sh", ".py", ".bash", ".zsh") and os.path.exists(full_path):
+        res["cat"] = "script"
+        try:
+            with open(full_path, "r", errors="ignore") as f:
+                content = f.read(2048)
+                # Python docstring
+                m = re.search(r"^\"\"\"(.*?)\"\"\"", content, re.MULTILINE | re.DOTALL)
+                if m:
+                    doc = m.group(1).strip().splitlines()[0]
+                    doc = re.sub(r"^[a-zA-Z0-9_\-]+:\s*", "", doc).strip()
+                    res["desc"] = doc
+                    return res
+                # Bash/sh header comments
+                for line in content.splitlines()[:15]:
+                    line = line.strip()
+                    if line.startswith("#") and not line.startswith("#!"):
+                        c = line.lstrip("# \t")
+                        if c and not any(skip in c.lower() for skip in ["static file", "default", "license", "copyright", "usr/bin", "==="]):
+                            res["desc"] = c
+                            return res
+        except Exception:
+            pass
+        res["desc"] = basename
+        return res
+
+    # Configuration files
+    if ext in (".conf", ".ron", ".json", ".yaml", ".yml", ".toml", ".ini"):
+        res["cat"] = "config"
+        code, diff_out, _ = run_git(["diff", filepath], repo_path)
+        if "old mode" not in diff_out and diff_out:
+            if "~" in diff_out and "/home/" in diff_out:
+                res["desc"] = f"use tilde path expansion in {basename}"
+                return res
+        res["desc"] = f"{basename} configuration"
+        return res
+
+    res["desc"] = basename
+    return res
+
+
+def synthesize_commit_message(repo_path: str, raw_uncommitted: List[str]) -> Tuple[str, str]:
+    """
+    Synthesize a clean, conventional commit message based on repository diffs.
+    Returns: (subject, full_message)
+    """
+    changes: List[Dict[str, Any]] = []
+    for line in raw_uncommitted:
+        code = line[:2]
+        # Skip leading code and delimiter space
+        fn = line[3:].strip()
+        # Handle quoted paths or renames
+        if fn.startswith('"') and fn.endswith('"'):
+            fn = fn[1:-1]
+        if " -> " in fn:
+            fn = fn.split(" -> ")[1].strip()
+        semantics = extract_file_semantics(repo_path, fn, code)
+        changes.append(semantics)
+
+    added = [c for c in changes if "??" in c["code"] or "A" in c["code"]]
+    modified = [c for c in changes if "M" in c["code"] and c["cat"] != "mode_change"]
+    mode_changes = [c for c in changes if c["cat"] == "mode_change"]
+    deleted = [c for c in changes if "D" in c["code"]]
+
+    doc_count = sum(1 for c in changes if c["cat"] == "doc")
+    script_count = sum(1 for c in changes if c["cat"] == "script")
+    config_count = sum(1 for c in changes if c["cat"] == "config")
+
+    # Determine conventional prefix
+    if doc_count > 0 and (doc_count >= len(changes) / 2 or not added and not script_count):
+        prefix = "docs:"
+    elif script_count > 0 or added:
+        prefix = "feat:" if added else "fix:"
+    elif config_count > 0:
+        prefix = "config:"
+    elif mode_changes and len(mode_changes) == len(changes):
+        prefix = "chore:"
+    else:
+        prefix = "feat:"
+
+    subj_parts: List[str] = []
+
+    # Handle Documentation-heavy repos cleanly
+    if prefix == "docs:" and added:
+        doc_titles = []
+        for c in added:
+            d = c["desc"]
+            # Clean parentheses or trailing qualifiers
+            d = re.sub(r"\s*\(@[^)]+\)", "", d)
+            d = re.sub(r"—.*$", "", d).strip()
+            doc_titles.append(d if d else c["basename"])
+        if len(doc_titles) == 1:
+            subj_parts.append(f"add {doc_titles[0]}")
+        elif len(doc_titles) == 2:
+            subj_parts.append(f"add {doc_titles[0]} and {doc_titles[1]}")
+        else:
+            subj_parts.append(f"add {doc_titles[0]} and {len(doc_titles) - 1} new guides")
+
+    # Added files
+    elif added:
+        names = [c["basename"] for c in added]
+        # Check bluetooth topic
+        bt_files = [n for n in names if any(k in n for k in ("bt-", "bluetooth-", "obex-", "reconnect-bt"))]
+        sync_files = [n for n in names if n in ("sync-repos", "push-repos", "repo-sync")]
+
+        if bt_files and sync_files:
+            subj_parts.append("add bluetooth tools and sync-repos utilities")
+        elif len(bt_files) >= 3 and len(bt_files) == len(names):
+            subj_parts.append(f"add bluetooth utilities ({len(names)} files)")
+        elif len(names) == 1:
+            subj_parts.append(f"add {names[0]}")
+        elif len(names) <= 3:
+            subj_parts.append(f"add {', '.join(names[:-1])} and {names[-1]}")
+        else:
+            subj_parts.append(f"add {names[0]} and {len(names) - 1} new utilities")
+
+    # Modified files
+    if modified:
+        mnames = [c["basename"] for c in modified]
+        # Check if config with specific desc
+        if len(modified) == 1 and modified[0]["desc"].startswith("use tilde"):
+            subj_parts.append(modified[0]["desc"])
+        elif all(n in (".zshrc-personal", "nordconn", "oxvd") for n in mnames):
+            subj_parts.append("update nordvpn commands")
+        elif len(mnames) <= 2:
+            subj_parts.append(f"update {', '.join(mnames)}")
+        else:
+            subj_parts.append(f"update {len(mnames)} files")
+
+    # Deleted files
+    if deleted:
+        dnames = [c["basename"] for c in deleted]
+        if len(dnames) <= 2:
+            subj_parts.append(f"remove {', '.join(dnames)}")
+        else:
+            subj_parts.append(f"remove {len(dnames)} files")
+
+    # Mode changes (only if no content additions/modifications)
+    if mode_changes and not added and not modified and not deleted:
+        subj_parts.append(f"update permissions for {len(mode_changes)} files")
+
+    # Combine subject
+    if not subj_parts:
+        subject = f"{prefix} update repository files"
+    else:
+        subject = f"{prefix} {', '.join(subj_parts)}"
+
+    if len(subject) > 72:
+        subject = subject[:69] + "..."
+
+    # Build detailed body
+    body_lines: List[str] = []
+    if added:
+        body_lines.append("Added files:")
+        for c in added:
+            desc_str = f" - {c['desc']}" if c['desc'] and c['desc'] != c['basename'] else ""
+            body_lines.append(f"  * {c['fn']}{desc_str}")
+    if modified:
+        body_lines.append("Modified files:")
+        for c in modified:
+            desc_str = f" - {c['desc']}" if c['desc'] and c['desc'] != c['basename'] else ""
+            body_lines.append(f"  * {c['fn']}{desc_str}")
+    if mode_changes:
+        body_lines.append(f"Updated permissions ({len(mode_changes)} file(s)):")
+        for c in mode_changes:
+            body_lines.append(f"  * {c['fn']}")
+    if deleted:
+        body_lines.append("Deleted files:")
+        for c in deleted:
+            body_lines.append(f"  * {c['fn']}")
+
+    full_message = subject + ("\n\n" + "\n".join(body_lines) if body_lines else "")
+    return subject, full_message
+
+
+def edit_message_in_editor(initial_message: str) -> str:
+    """Open message in user's $EDITOR for interactive adjustment."""
+    editor = os.environ.get("EDITOR") or ("nvim" if shutil.which("nvim") else "nano")
+    with tempfile.NamedTemporaryFile(suffix=".commit_editmsg", mode="w+", delete=False) as tf:
+        tf.write(initial_message)
+        tf_name = tf.name
+
+    try:
+        subprocess.run([editor, tf_name], check=True)
+        with open(tf_name, "r") as tf:
+            edited = tf.read().strip()
+        return edited if edited else initial_message
+    except Exception as e:
+        print(f"{RED}Editor failed ({e}), using proposed message.{RESET}")
+        return initial_message
+    finally:
+        if os.path.exists(tf_name):
+            os.remove(tf_name)
+
+
+def sync_single_repo(
+    repo: Dict[str, Any],
+    commit_msg: str,
+    dry_run: bool = False,
+    do_pull: bool = True,
+    do_push: bool = True,
+    preferred_remote: str = "origin",
+) -> Dict[str, Any]:
+    """Execute stage -> commit -> pull -> push workflow for one repository."""
+    path = repo["path"]
+    results = {
+        "repo": path,
+        "committed": 0,
+        "pulled": False,
+        "pushed": False,
+        "actions": [],
+        "errors": [],
+    }
+
+    uncommitted = repo["uncommitted_files"]
+
+    # 1. Stage and commit
+    if uncommitted:
+        results["actions"].append(f"Stage & commit {len(uncommitted)} file(s)")
+        if dry_run:
+            results["committed"] = len(uncommitted)
+        else:
+            code, out, err = run_git(["add", "-A"], path)
+            if code != 0:
+                results["errors"].append(f"git add failed: {err}")
+                return results
+
+            # Commit using multi-line message
+            msg_parts = commit_msg.split("\n\n", 1)
+            commit_args = ["commit", "-m", msg_parts[0]]
+            if len(msg_parts) > 1 and msg_parts[1].strip():
+                commit_args.extend(["-m", msg_parts[1].strip()])
+
+            code, out, err = run_git(commit_args, path)
+            if code == 0:
+                results["committed"] = len(uncommitted)
+            else:
+                results["errors"].append(f"git commit failed: {err}")
+                return results
+
+    # Determine remote
+    remote_names = list(repo["remotes"].keys())
+    if not remote_names:
+        results["actions"].append("No remote attached: local changes committed only")
+        return results
+
+    active_remote = preferred_remote if preferred_remote in repo["remotes"] else remote_names[0]
+    branch = repo["branch"]
+
+    # 2. Pull remote updates
+    if do_pull and not dry_run:
+        results["actions"].append(f"Pulling from {active_remote}/{branch}")
+        code, out, err = run_git(["pull", "--rebase", active_remote, branch], path)
+        if code == 0:
+            results["pulled"] = True
+        else:
+            run_git(["rebase", "--abort"], path)
+            code2, out2, err2 = run_git(["pull", active_remote, branch], path)
+            if code2 == 0:
+                results["pulled"] = True
+            else:
+                results["errors"].append(f"git pull failed: {err or err2}")
+    elif do_pull and dry_run:
+        results["actions"].append(f"Would pull from {active_remote}/{branch}")
+        results["pulled"] = True
+
+    # 3. Push to remote
+    if do_push:
+        needs_push = results["committed"] > 0 or repo["ahead"] > 0 or not repo["upstream"]
+
+        if not needs_push:
+            results["actions"].append("Already up to date with remote (no push needed)")
+        else:
+            results["actions"].append(f"Pushing to {active_remote}/{branch}")
+            if dry_run:
+                results["pushed"] = True
+            else:
+                push_cmd = ["push"]
+                if not repo["upstream"]:
+                    push_cmd.extend(["-u", active_remote, branch])
+
+                code, out, err = run_git(push_cmd, path)
+                if code == 0:
+                    results["pushed"] = True
+                else:
+                    results["errors"].append(f"git push failed: {err}")
+
+    return results
+
+
+def print_banner(title: str):
+    print(f"\n{BOLD}{CYAN}{'=' * 78}{RESET}")
+    print(f"{BOLD}{CYAN}  {title}{RESET}")
+    print(f"{BOLD}{CYAN}{'=' * 78}{RESET}\n")
+
+
+def format_status(repo: Dict[str, Any]) -> str:
+    uncommitted = len(repo["uncommitted_files"])
+    ahead = repo["ahead"]
+    behind = repo["behind"]
+
+    parts = []
+    if uncommitted > 0:
+        parts.append(f"{YELLOW}{uncommitted} uncommitted file(s){RESET}")
+    else:
+        parts.append(f"{GREEN}clean{RESET}")
+
+    if ahead > 0:
+        parts.append(f"{CYAN}{ahead} ahead{RESET}")
+    if behind > 0:
+        parts.append(f"{MAGENTA}{behind} behind{RESET}")
+
+    return ", ".join(parts)
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Analyze, stage, generate smart commit messages, and push Git repositories to remotes."
+    )
+    parser.add_argument(
+        "target",
+        nargs="?",
+        default=None,
+        help="Optional target repo path, name, or '.' (default: current repo if inside one, or --all)",
+    )
+    parser.add_argument(
+        "-a", "--all",
+        action="store_true",
+        help="Scan and synchronize all user repositories across home directory",
+    )
+    parser.add_argument(
+        "-d", "--dir",
+        default=os.path.expanduser("~"),
+        help="Root directory to search for repositories (default: ~)",
+    )
+    parser.add_argument(
+        "-l", "--list",
+        action="store_true",
+        help="List repository status and pending changes without committing or pushing",
+    )
+    parser.add_argument(
+        "-n", "--dry-run",
+        action="store_true",
+        help="Simulate analysis and generated commit messages without changing git status",
+    )
+    parser.add_argument(
+        "-y", "--yes",
+        action="store_true",
+        help="Automatically accept generated commit messages and push without interactive prompt",
+    )
+    parser.add_argument(
+        "-m", "--message",
+        default=None,
+        help="Override automatic commit message with custom string",
+    )
+    parser.add_argument(
+        "-c", "--changed-only",
+        action="store_true",
+        default=True,
+        help="Process only repositories with uncommitted changes or unpushed commits (default: True)",
+    )
+    parser.add_argument(
+        "--no-pull",
+        action="store_true",
+        help="Skip pulling remote updates before pushing",
+    )
+    parser.add_argument(
+        "--no-push",
+        action="store_true",
+        help="Commit locally but do not push to remote",
+    )
+    parser.add_argument(
+        "--all-remotes",
+        action="store_true",
+        help="Include non-GitHub remotes as well",
+    )
+    parser.add_argument(
+        "--guide",
+        action="store_true",
+        help="Display the full repository analysis and user guide",
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output repository inspection data in JSON format",
+    )
+
+    args = parser.parse_args()
+
+    # Guide display
+    if args.guide:
+        guide_path = Path.home() / "bin" / "REPO_SYNC_GUIDE.md"
+        if guide_path.exists():
+            with open(guide_path, "r") as gf:
+                print(gf.read())
+        else:
+            print("Guide file not found at ~/bin/REPO_SYNC_GUIDE.md")
+        return
+
+    # Detect if invoked inside an active git repository
+    cwd = os.getcwd()
+    in_git_repo = (Path(cwd) / ".git").exists()
+
+    # Determine targets
+    if args.target:
+        if args.target == ".":
+            repo_paths = [os.path.abspath(cwd)]
+        else:
+            candidate = os.path.abspath(args.target)
+            if (Path(candidate) / ".git").exists():
+                repo_paths = [candidate]
+            else:
+                # Search by folder name in home directory
+                matching = [r for r in find_git_repositories(args.dir) if os.path.basename(r) == args.target]
+                if matching:
+                    repo_paths = matching
+                else:
+                    print(f"{RED}Error: '{args.target}' is not a recognized git repository.{RESET}")
+                    sys.exit(1)
+    elif args.all or not in_git_repo:
+        repo_paths = find_git_repositories(args.dir)
+    else:
+        # Inside git repo with no target specified -> operate on current repo
+        repo_paths = [os.path.abspath(cwd)]
+
+    detected_user = detect_github_username()
+
+    print_banner("Git Repository Sync & Push Tool")
+    print(f"{BOLD}Detected User:{RESET}      {detected_user or 'None'}")
+    if args.list:
+        print(f"{BOLD}Mode:{RESET}               {CYAN}LIST ONLY{RESET}")
+    elif args.dry_run:
+        print(f"{BOLD}Mode:{RESET}               {YELLOW}DRY-RUN (Simulated){RESET}")
+    else:
+        print(f"{BOLD}Mode:{RESET}               {GREEN}LIVE EXECUTION{RESET}")
+    print(f"{BOLD}Pull from remote:{RESET}   {'No' if args.no_pull else 'Yes'}")
+    print(f"{BOLD}Push to remote:{RESET}     {'No' if args.no_push else 'Yes'}")
+
+    # Inspect repositories
+    print(f"\n{BOLD}[1/3] Inspecting repositories...{RESET}", end="", flush=True)
+    all_repos: List[Dict[str, Any]] = []
+    for p in repo_paths:
+        r_info = inspect_repository(p)
+        # Check ownership
+        for r_val in r_info["remotes"].values():
+            urls = [r_val.get("fetch", ""), r_val.get("push", "")]
+            if any((detected_user or "").lower() in u.lower() for u in urls):
+                r_info["is_user_owned"] = True
+                break
+        all_repos.append(r_info)
+    print(f" Found {GREEN}{len(all_repos)}{RESET} repositories.\n")
+
+    if args.json:
+        print(json.dumps(all_repos, indent=2))
+        return
+
+    # Filter eligible repos
+    eligible_repos: List[Dict[str, Any]] = []
+    skipped_repos: List[Tuple[Dict[str, Any], str]] = []
+
+    for r in all_repos:
+        if r["is_rebasing"]:
+            skipped_repos.append((r, "Rebase in progress (resolve manually)"))
+            continue
+        if r["is_merging"]:
+            skipped_repos.append((r, "Merge conflicts in progress (resolve manually)"))
+            continue
+
+        # If scanning all repos, restrict to user-owned repos to avoid pushing 3rd party clones
+        if len(repo_paths) > 1 and not args.all_remotes and r["remotes"] and not r["is_user_owned"]:
+            skipped_repos.append((r, f"Third-party repository (owner != {detected_user})"))
+            continue
+
+        if args.changed_only and not r["uncommitted_files"] and r["ahead"] == 0:
+            skipped_repos.append((r, "Repository is clean / up to date"))
+            continue
+
+        eligible_repos.append(r)
+
+    # Display list
+    print(f"{BOLD}Repositories requiring synchronization ({len(eligible_repos)}):{RESET}")
+    for idx, r in enumerate(eligible_repos, 1):
+        print(f"\n{BOLD}{idx}. {CYAN}{r['path']}{RESET} [{BOLD}{r['branch']}{RESET}]")
+        if r["remotes"]:
+            for r_name, r_data in r["remotes"].items():
+                print(f"   Remote '{r_name}': {r_data.get('fetch', '')}")
+        else:
+            print(f"   {YELLOW}No remotes attached{RESET}")
+
+        print(f"   Status: {format_status(r)}")
+
+        if r["uncommitted_files"]:
+            print(f"   {YELLOW}Pending changes ({len(r['uncommitted_files'])}):{RESET}")
+            for f in r["uncommitted_files"][:6]:
+                print(f"     {f}")
+            if len(r["uncommitted_files"]) > 6:
+                print(f"     ... and {len(r['uncommitted_files']) - 6} more")
+
+    if skipped_repos:
+        print(f"\n{DIM}Skipped {len(skipped_repos)} repositories (clean, third-party, or in rebase). Pass -a or specify target to override.{RESET}")
+
+    if args.list:
+        print(f"\n{GREEN}Repository inspection complete.{RESET}\n")
+        return
+
+    if not eligible_repos:
+        print(f"\n{GREEN}All repositories are already clean and up to date!{RESET}\n")
+        return
+
+    # Process eligible repositories
+    print(f"\n{BOLD}[2/3] Analyzing changes and preparing commits...{RESET}\n")
+    results_summary = []
+
+    for idx, r in enumerate(eligible_repos, 1):
+        r_name = r["name"]
+        print(f"{BOLD}{'─' * 70}{RESET}")
+        print(f"{BOLD}[{idx}/{len(eligible_repos)}] Repository: {CYAN}{r['path']}{RESET} [{BOLD}{r['branch']}{RESET}]")
+
+        # Synthesize commit message if uncommitted changes exist
+        if r["uncommitted_files"]:
+            if args.message:
+                chosen_msg = args.message
+            else:
+                subj, full_msg = synthesize_commit_message(r["path"], r["uncommitted_files"])
+                chosen_msg = full_msg
+
+            print(f"\n{BOLD}Proposed Commit Message:{RESET}")
+            for msg_line in chosen_msg.splitlines():
+                print(f"  {CYAN}{msg_line}{RESET}")
+
+            # Interactive confirmation unless -y/--yes or dry-run
+            if not args.yes and not args.dry_run:
+                while True:
+                    prompt_str = f"\nAction for {BOLD}{r_name}{RESET} [Enter: accept & proceed, e: edit message, m: manual message, s: skip, q: quit]: "
+                    try:
+                        choice = input(prompt_str).strip().lower()
+                    except (KeyboardInterrupt, EOFError):
+                        print("\nAborted.")
+                        return
+
+                    if choice == "" or choice == "y":
+                        break
+                    elif choice == "e":
+                        chosen_msg = edit_message_in_editor(chosen_msg)
+                        print(f"\n{BOLD}Updated Message:{RESET}")
+                        for ml in chosen_msg.splitlines():
+                            print(f"  {CYAN}{ml}{RESET}")
+                    elif choice == "m":
+                        try:
+                            manual = input("Enter commit message: ").strip()
+                            if manual:
+                                chosen_msg = manual
+                                break
+                        except (KeyboardInterrupt, EOFError):
+                            break
+                    elif choice == "s":
+                        print("  Skipped.")
+                        chosen_msg = None
+                        break
+                    elif choice == "q":
+                        print("Quitting.")
+                        return
+
+            if chosen_msg is None:
+                continue
+        else:
+            chosen_msg = "Sync remote updates"
+
+        # Execute synchronization
+        print(f"\n{BOLD}Executing synchronization...{RESET}")
+        res = sync_single_repo(
+            repo=r,
+            commit_msg=chosen_msg,
+            dry_run=args.dry_run,
+            do_pull=not args.no_pull,
+            do_push=not args.no_push,
+        )
+
+        for act in res["actions"]:
+            prefix = f"{DIM}[SIMULATION]{RESET} " if args.dry_run else ""
+            print(f"  -> {prefix}{act}")
+
+        if res["errors"]:
+            for err in res["errors"]:
+                print(f"  {RED}ERROR: {err}{RESET}")
+        elif res["committed"] > 0 or res["pushed"] or res["pulled"]:
+            print(f"  {GREEN}✓ Success{RESET}")
+        else:
+            print(f"  {GREEN}✓ Already synchronized{RESET}")
+
+        results_summary.append((r, res))
+
+    # Summary Report
+    print_banner("Synchronization Summary")
+    total_committed = sum(res["committed"] for _, res in results_summary)
+    total_pushed = sum(1 for _, res in results_summary if res["pushed"])
+    total_errors = sum(len(res["errors"]) for _, res in results_summary)
+
+    print(f"Repositories processed:   {len(results_summary)}")
+    print(f"Files staged & committed: {total_committed}")
+    print(f"Repositories pushed:       {total_pushed}")
+    print(f"Errors encountered:        {total_errors}")
+
+    if total_errors > 0:
+        print(f"\n{RED}Repositories with errors:{RESET}")
+        for r, res in results_summary:
+            if res["errors"]:
+                print(f"  - {r['path']}: {', '.join(res['errors'])}")
+
+    print(f"\n{GREEN}{BOLD}All operations completed!{RESET}\n")
+
+
+if __name__ == "__main__":
+    main()

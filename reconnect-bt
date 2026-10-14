@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+# Bluetooth MAC address (default: Nulea BT5.0 Mouse)
+DEVICE="${1:-D3:1C:A1:E2:3A:B4}"
+NAME="$(bluetoothctl info "$DEVICE" 2>/dev/null | awk -F': ' '/Alias:/ {print $2}')"
+NAME="${NAME:-$DEVICE}"
+
+echo "[*] Disconnecting $NAME ($DEVICE)..."
+bluetoothctl disconnect "$DEVICE" >/dev/null 2>&1
+
+echo "[*] Waiting 2 seconds..."
+sleep 2
+
+echo "[*] Reconnecting to $NAME ($DEVICE)..."
+if bluetoothctl connect "$DEVICE"; then
+    echo "[✓] Connection successful!"
+else
+    echo "[✗] Failed to connect to $NAME ($DEVICE)."
+    exit 1
+fi

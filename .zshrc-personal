@@ -311,12 +311,12 @@ mntadult () {
 }
 
 nordconn () {
-    /usr/bin/nordvpn login --token $NORDTOKEN
-    /usr/bin/nordvpn connect
+    /usr/bin/nordvpn login --token "$NORDTOKEN"
+    /usr/bin/nordvpn connect "$@"
 }
 
 norddisconn () {
-    /usr/bin/nordvpn d
+    /usr/bin/nordvpn disconnect
 }
 
 

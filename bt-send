@@ -1,0 +1,300 @@
+#!/usr/bin/env python3
+"""
+bt-send: Bluetooth OBEX file transfer CLI tool
+Sends files to paired Bluetooth devices (e.g. Motorola phone) using BlueZ OBEX.
+"""
+
+import sys
+import os
+import argparse
+import signal
+import subprocess
+import dbus
+import dbus.mainloop.glib
+from gi.repository import GLib
+
+OPP_UUID = "00001105-0000-1000-8000-00805f9b34fb"
+
+def format_size(bytes_num):
+    for unit in ['B', 'KB', 'MB', 'GB']:
+        if bytes_num < 1024.0:
+            return f"{bytes_num:.1f} {unit}" if unit != 'B' else f"{bytes_num} B"
+        bytes_num /= 1024.0
+    return f"{bytes_num:.1f} TB"
+
+def render_progress(filename, transferred, total, status_text=""):
+    width = 30
+    fraction = 0.0
+    if total > 0:
+        fraction = min(1.0, max(0.0, transferred / total))
+    filled = int(width * fraction)
+    bar = "=" * filled + (">" if filled < width and fraction > 0 else "")
+    bar = bar.ljust(width)
+    percent = int(fraction * 100)
+    extra = f" [{status_text}]" if status_text else ""
+    sys.stdout.write(f"\r  {filename}: [{bar}] {percent:3d}% ({format_size(transferred)} / {format_size(total)}){extra}")
+    sys.stdout.flush()
+
+def get_bluetooth_devices():
+    """Query BlueZ on system bus for paired and OBEX-capable devices."""
+    devices = []
+    try:
+        sys_bus = dbus.SystemBus()
+        manager = dbus.Interface(sys_bus.get_object("org.bluez", "/"), "org.freedesktop.DBus.ObjectManager")
+        objects = manager.GetManagedObjects()
+
+        for path, ifaces in objects.items():
+            if "org.bluez.Device1" in ifaces:
+                dev = ifaces["org.bluez.Device1"]
+                paired = bool(dev.get("Paired", False))
+                connected = bool(dev.get("Connected", False))
+                name = str(dev.get("Name", dev.get("Alias", "Unknown")))
+                address = str(dev.get("Address", ""))
+                uuids = [str(u).lower() for u in dev.get("UUIDs", [])]
+                has_obex = OPP_UUID in uuids
+                devices.append({
+                    "address": address,
+                    "name": name,
+                    "paired": paired,
+                    "connected": connected,
+                    "has_obex": has_obex,
+                    "path": path,
+                })
+    except Exception as e:
+        print(f"Error communicating with BlueZ: {e}", file=sys.stderr)
+    return devices
+
+def find_target_device(requested_device=None):
+    """Resolve target Bluetooth device by name/address or find the default OBEX device."""
+    devices = get_bluetooth_devices()
+    paired_devices = [d for d in devices if d["paired"]]
+    obex_devices = [d for d in paired_devices if d["has_obex"]]
+
+    if requested_device:
+        req = requested_device.strip().lower()
+        # Exact match MAC
+        for d in devices:
+            if d["address"].lower() == req:
+                return d
+        # Substring match on name or MAC
+        matches = [d for d in devices if req in d["name"].lower() or req in d["address"].lower()]
+        if len(matches) == 1:
+            return matches[0]
+        elif len(matches) > 1:
+            print(f"Ambiguous device '{requested_device}'. Matches found:")
+            for m in matches:
+                print(f"  - {m['name']} [{m['address']}]")
+            sys.exit(1)
+        else:
+            print(f"Device '{requested_device}' not found among Bluetooth devices.")
+            sys.exit(1)
+
+    # No device requested: auto-detect
+    if len(obex_devices) == 1:
+        return obex_devices[0]
+    elif len(obex_devices) > 1:
+        print("Multiple paired OBEX-capable devices found. Please select one using -d/--device:")
+        for idx, d in enumerate(obex_devices, 1):
+            conn = " (Connected)" if d["connected"] else ""
+            print(f"  [{idx}] {d['name']} [{d['address']}]{conn}")
+        sys.exit(1)
+    elif len(paired_devices) > 0:
+        # Fall back to single paired device if only 1 exists
+        if len(paired_devices) == 1:
+            return paired_devices[0]
+        print("No OBEX-specific device detected, multiple paired devices found. Specify one with -d:")
+        for d in paired_devices:
+            print(f"  - {d['name']} [{d['address']}]")
+        sys.exit(1)
+    else:
+        print("No paired Bluetooth devices found. Please pair your phone first using Settings or bluetoothctl.")
+        sys.exit(1)
+
+def send_files_cli(device, files):
+    """Send files using org.bluez.obex D-Bus interface."""
+    dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
+    bus = dbus.SessionBus()
+
+    # Ensure obex daemon is active
+    try:
+        obex_obj = bus.get_object("org.bluez.obex", "/org/bluez/obex")
+        client = dbus.Interface(obex_obj, "org.bluez.obex.Client1")
+    except dbus.DBusException as e:
+        print(f"Failed to connect to OBEX daemon (org.bluez.obex): {e}", file=sys.stderr)
+        print("Make sure obex.service is running: systemctl --user start obex.service", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"Connecting to {device['name']} [{device['address']}]...")
+    try:
+        session_path = client.CreateSession(device["address"], {"Target": "opp"})
+    except dbus.DBusException as e:
+        print(f"Connection failed: {e}", file=sys.stderr)
+        print("Tip: Make sure Bluetooth is enabled on your phone and it is within range.", file=sys.stderr)
+        sys.exit(1)
+
+    session_obj = bus.get_object("org.bluez.obex", session_path)
+    opp = dbus.Interface(session_obj, "org.bluez.obex.ObjectPush1")
+
+    for idx, file_path in enumerate(files, 1):
+        abs_path = os.path.abspath(file_path)
+        base_name = os.path.basename(abs_path)
+        file_size = os.path.getsize(abs_path)
+
+        prefix = f"[{idx}/{len(files)}] " if len(files) > 1 else ""
+        print(f"\n{prefix}Sending '{base_name}' ({format_size(file_size)})...")
+        render_progress(base_name, 0, file_size, "Waiting for phone confirmation...")
+
+        loop = GLib.MainLoop()
+        transfer_state = {
+            "transfer_path": None,
+            "transferred": 0,
+            "success": False,
+            "error_msg": None,
+        }
+
+        try:
+            transfer_path, props = opp.SendFile(abs_path)
+            transfer_state["transfer_path"] = transfer_path
+        except dbus.DBusException as e:
+            sys.stdout.write("\n")
+            print(f"Failed to initiate transfer: {e}", file=sys.stderr)
+            continue
+
+        def on_properties_changed(interface, changed_props, invalidated_props, path):
+            if path != transfer_state["transfer_path"]:
+                return
+            if "Transferred" in changed_props:
+                transfer_state["transferred"] = int(changed_props["Transferred"])
+                render_progress(base_name, transfer_state["transferred"], file_size, "Transferring...")
+            if "Status" in changed_props:
+                status = str(changed_props["Status"])
+                if status == "complete":
+                    render_progress(base_name, file_size, file_size, "Done")
+                    sys.stdout.write("\n")
+                    transfer_state["success"] = True
+                    loop.quit()
+                elif status == "error":
+                    sys.stdout.write("\n")
+                    transfer_state["error_msg"] = "Transfer was declined or failed on phone."
+                    loop.quit()
+                elif status == "active":
+                    render_progress(base_name, transfer_state["transferred"], file_size, "Transferring...")
+                elif status == "queued":
+                    render_progress(base_name, transfer_state["transferred"], file_size, "Waiting for phone confirmation...")
+
+        signal_match = bus.add_signal_receiver(
+            on_properties_changed,
+            dbus_interface="org.freedesktop.DBus.Properties",
+            signal_name="PropertiesChanged",
+            path=transfer_state["transfer_path"]
+        )
+
+        def sigint_handler(sig, frame):
+            sys.stdout.write("\nCancelled by user.\n")
+            try:
+                t_obj = bus.get_object("org.bluez.obex", transfer_state["transfer_path"])
+                t_iface = dbus.Interface(t_obj, "org.bluez.obex.Transfer1")
+                t_iface.Cancel()
+            except Exception:
+                pass
+            try:
+                client.RemoveSession(session_path)
+            except Exception:
+                pass
+            sys.exit(130)
+
+        prev_handler = signal.signal(signal.SIGINT, sigint_handler)
+
+        try:
+            loop.run()
+        finally:
+            signal_match.remove()
+            signal.signal(signal.SIGINT, prev_handler)
+
+        if transfer_state["success"]:
+            print(f"✔ Successfully sent '{base_name}' to {device['name']}.")
+        elif transfer_state["error_msg"]:
+            print(f"✖ Failed: {transfer_state['error_msg']}", file=sys.stderr)
+
+    # Clean up session
+    try:
+        client.RemoveSession(session_path)
+    except Exception:
+        pass
+    print("\nAll transfers finished.")
+
+def send_files_gui(device, files):
+    """Launch bluetooth-sendto with selected files and optional device pre-selection."""
+    cmd = ["bluetooth-sendto"]
+    if device:
+        cmd.append(f"--device={device['address']}")
+    cmd.extend(files)
+    print(f"Launching GUI transfer dialog...")
+    subprocess.Popen(cmd)
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Transfer files over Bluetooth (OBEX) to paired devices like Motorola phones."
+    )
+    parser.add_argument("files", nargs="*", help="File(s) to transfer")
+    parser.add_argument("-d", "--device", help="Target Bluetooth device (MAC address or name substring)")
+    parser.add_argument("-l", "--list", action="store_true", help="List paired Bluetooth devices")
+    parser.add_argument("-g", "--gui", action="store_true", help="Use the graphical transfer dialog (bluetooth-sendto)")
+    parser.add_argument("-r", "--recursive", action="store_true", help="Recursively include files if directory is specified")
+
+    args = parser.parse_args()
+
+    if args.list:
+        devices = get_bluetooth_devices()
+        paired = [d for d in devices if d["paired"]]
+        if not paired:
+            print("No paired Bluetooth devices found.")
+            return
+        print("Paired Bluetooth Devices:")
+        for d in paired:
+            obex_str = " (OBEX Supported)" if d["has_obex"] else ""
+            conn_str = " [Connected]" if d["connected"] else ""
+            print(f"  • {d['name']:<30} {d['address']}{obex_str}{conn_str}")
+        return
+
+    if not args.files:
+        parser.print_help()
+        sys.exit(1)
+
+    # Collect files
+    valid_files = []
+    for f in args.files:
+        path = os.path.abspath(os.path.expanduser(f))
+        if not os.path.exists(path):
+            print(f"Error: Path '{f}' does not exist.", file=sys.stderr)
+            sys.exit(1)
+        if os.path.isdir(path):
+            if args.recursive:
+                for root, _, fnames in os.walk(path):
+                    for fn in sorted(fnames):
+                        valid_files.append(os.path.join(root, fn))
+            else:
+                for item in sorted(os.listdir(path)):
+                    item_path = os.path.join(path, item)
+                    if os.path.isfile(item_path):
+                        valid_files.append(item_path)
+        else:
+            valid_files.append(path)
+
+    if not valid_files:
+        print("No files found to transfer.", file=sys.stderr)
+        sys.exit(1)
+
+    total_size = sum(os.path.getsize(fp) for fp in valid_files)
+    if len(valid_files) > 1:
+        print(f"Queued {len(valid_files)} files ({format_size(total_size)} total).")
+
+    device = find_target_device(args.device)
+
+    if args.gui:
+        send_files_gui(device, valid_files)
+    else:
+        send_files_cli(device, valid_files)
+
+if __name__ == "__main__":
+    main()

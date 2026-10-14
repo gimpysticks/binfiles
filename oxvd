@@ -3,7 +3,7 @@
 params=$(echo "$*" | sed 's/ /+/g')
 duration='&sort=length&datef=week&durf=10min_more'
 #echo $params
-nordvpn c
+nordvpn connect
 # sleep 2
 # tmux kill-server
 brave-browser --incognito "https://www.xvideos.com/?k=${params}${duration}" &>/dev/null &
