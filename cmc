@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 
 # cmc: Clipboard Media Clear
-# Play clipboard URL(s), file path(s), or markdown playlist(s) (.md) in mpv full-screen, clearing terminal before & after.
+# Play or download clipboard URL(s), file path(s), or markdown playlist(s) (.md).
+# Playback: mpv full-screen, clearing terminal before & after.
+# Download: pass -d or --download to route all extracted URLs directly to yt-dlp.
 # Supports MarkDownload clips, xvideos search results, YouTube, and local media files.
 # If no arguments are provided and clipboard is empty or non-media, automatically checks for MarkDownload .md clips in ., /tmp/xvids, or ~/Downloads.
 
@@ -86,12 +88,23 @@ find_latest_md() {
 # Separate CLI options (-*) from positional arguments
 mpv_opts=()
 cli_args=()
+download_mode=false
+print_mode=false
 for arg in "$@"; do
-    if [[ "$arg" == -* ]]; then
-        mpv_opts+=("$arg")
-    else
-        cli_args+=("$arg")
-    fi
+    case "$arg" in
+        -d|--download)
+            download_mode=true
+            ;;
+        -p|--print|-u|--urls)
+            print_mode=true
+            ;;
+        -*)
+            mpv_opts+=("$arg")
+            ;;
+        *)
+            cli_args+=("$arg")
+            ;;
+    esac
 done
 
 items=()
@@ -252,6 +265,24 @@ fi
 if [ -z "$existing_playlist" ] && [ ${#items[@]} -eq 0 ]; then
     echo "cmc: clipboard/input is empty or no valid URLs/media found" >&2
     exit 1
+fi
+
+if [ "$print_mode" = true ]; then
+    if [ -n "$existing_playlist" ]; then
+        cat "$existing_playlist"
+    else
+        printf '%s\n' "${items[@]}"
+    fi
+    exit 0
+fi
+
+if [ "$download_mode" = true ]; then
+    if [ -n "$existing_playlist" ]; then
+        yt-dlp "${mpv_opts[@]}" --batch-file "$existing_playlist"
+    else
+        printf '%s\n' "${items[@]}" | yt-dlp "${mpv_opts[@]}" --batch-file -
+    fi
+    exit $?
 fi
 
 temp_playlist=""
