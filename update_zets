@@ -1,53 +1,40 @@
 #!/bin/bash
 
-# Script to update ~/zets/Home.md with current directory contents
+# Script to update ~/zets/index.md with current directory contents (newest edits first)
 # Usage: update_zets
+
+set -euo pipefail
 
 ZETSWIKI_DIR="$HOME/zets"
 HOME_MD="$ZETSWIKI_DIR/index.md"
 
-# Check if zetswiki directory exists
 if [[ ! -d "$ZETSWIKI_DIR" ]]; then
     echo "Error: $ZETSWIKI_DIR directory does not exist" >&2
     exit 1
 fi
 
-# Change to zetswiki directory
-cd "$ZETSWIKI_DIR" || exit 1
+echo "Updating index.md with current directory contents (latest edits at the top)..."
 
-# Generate new content with current markdown files
-echo "Updating index.md with current directory contents..."
-
-# Create temporary file with new content
 temp_file=$(mktemp)
+count=0
 
-# Add header
-cat > "$temp_file" << 'EOF'
+{
+    printf -- '---\ncreated: %s\n---\n\n\n# Generated Links\n\n' "$(date '+%Y-%m-%d')"
+    while IFS=$'\t' read -r _ts fname; do
+        link="${fname// /%20}"
+        link="${link//#/%23}"
+        link="${link//\'/%27}"
+        printf -- '- [%s](%s)\n' "${fname%.md}" "$link"
+        count=$(( count + 1 ))
+    done < <(find "$ZETSWIKI_DIR" -maxdepth 1 -name '*.md' -not -name 'index.md' -printf '%T@\t%f\n' | sort -rn)
+} > "$temp_file"
 
-
-# Generated Links
-
-EOF
-
-# Find all .md files except index.md, sort them, and create markdown links
-find . -name "*.md" -not -name "index.md" | \
-    sed 's|^\./||' | \
-    sort | \
-    awk -F. '{print "- [" $1 "](" $0 ")"}' >> "$temp_file"
-
-# Replace index.md with new content
 if cp "$temp_file" "$HOME_MD"; then
+    rm -f "$temp_file"
     echo "index.md updated successfully!"
-    # Show some stats
-    file_count=$(find . -name "*.md" -not -name "index.md" | wc -l)
-    echo "Total files indexed: $file_count"
+    echo "Total files indexed: $count (sorted by modification time, newest first)"
 else
     echo "Error: Failed to update index.md" >&2
     rm -f "$temp_file"
     exit 1
 fi
-
-# Clean up
-rm -f "$temp_file"
-
-echo "Done!"

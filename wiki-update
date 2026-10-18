@@ -1,7 +1,6 @@
 #!/bin/bash
 
-# wiki-update - Simple wrapper for updating the zetswiki index
+# wiki-update - Simple wrapper for updating the zets index (latest edits at top)
 # This can be used manually or as a git hook
 
-cd /home/sticks/zetswiki || exit 1
-exec ./update_wiki_index.sh "$@"
+exec /home/sticks/bin/update_wiki_index "$@"

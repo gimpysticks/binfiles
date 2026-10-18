@@ -29,7 +29,7 @@
         ],
         key: "t",
         description: Some("Twitch"),
-    ): Spawn("/usr/bin/firefox www.twitch.com"),
+    ): Spawn("xdg-open https://www.twitch.tv"),
     (
         modifiers: [
             Super,

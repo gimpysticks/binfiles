@@ -1,3 +1,5 @@
 #!/bin/bash
-cd /home/sticks/zets/
-nvim ~/zets/index.md
+cd /home/sticks/zets/ || exit 1
+/home/sticks/bin/update_wiki_index >/dev/null 2>&1
+exec nvim ~/zets/index.md
+

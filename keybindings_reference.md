@@ -1,6 +1,6 @@
 # Pop!_OS Custom Keybindings Reference
 
-Last synced: `2026-10-18 00:36`
+Last synced: `2026-10-18 10:22`
 Live COSMIC Path: `~/.config/cosmic/com.system76.CosmicSettings.Shortcuts/v1/custom`  
 Repository Copy: [`cosmic-custom-keybindings.ron`](cosmic-custom-keybindings.ron)  
 System Actions Copy: [`cosmic-system-actions.ron`](cosmic-system-actions.ron)  
@@ -66,7 +66,7 @@ Guake has been fully uninstalled and replaced by TildaZ as the drop-down termina
 | `Super + Shift + m` | Monitor Off | `/home/sticks/bin/monitor-off` | Turn off monitor power (DPMS sleep) via wlopm |
 | `Super + Shift + o` | ChatGpt | `xdg-open https://chatgpt.com/` |  |
 | `Super + Shift + s` | Shotcut | `flatpak run org.shotcut.Shotcut` |  |
-| `Super + Shift + t` | Twitch | `/usr/bin/firefox www.twitch.com` |  |
+| `Super + Shift + t` | Twitch | `xdg-open https://www.twitch.tv` |  |
 | `Ctrl + space` | Handy Speech to Text | `/home/sticks/.local/bin/handy --toggle-transcription` | Toggle Handy speech-to-text transcription (USR2 signal via wrapper) |
 | `Ctrl + Alt + BackSpace` | Restart X | `/home/sticks/bin/restartx` |  |
 | `Ctrl + Alt + Left` | Variety Previous | `/usr/bin/variety --previous` |  |
