@@ -16,12 +16,20 @@ show_usage() {
 }
 
 # Check for required commands
-for cmd in tmux xdg-open xdotool; do
-  if ! command -v "$cmd" &>/dev/null; then
-    echo "Error: Required command '$cmd' not found. Please install it and try again."
-    exit 1
-  fi
-done
+if ! command -v tmux &>/dev/null; then
+  echo "Error: Required command 'tmux' not found. Please install it and try again."
+  exit 1
+fi
+
+if ! command -v gio &>/dev/null && ! command -v xdg-open &>/dev/null; then
+  echo "Error: Neither 'gio' nor 'xdg-open' found. Please install an opener and try again."
+  exit 1
+fi
+
+# Check for keyboard automation tool
+if ! python3 -c "import evdev" &>/dev/null && ! command -v wtype &>/dev/null && ! command -v ydotool &>/dev/null; then
+  echo "Warning: No Wayland keyboard automation tool (python3-evdev, wtype, or ydotool) found. Tab navigation may not work." >&2
+fi
 
 # Define default session name
 SESSION_NAME="aiurls"
@@ -29,6 +37,43 @@ SESSION_NAME="aiurls"
 # Default bookmarks file
 AIURLS_BOOKMARKS_FILE="$HOME/Documents/bookmarks/ai.urls"
 BOOKMARKS_FILE="$AIURLS_BOOKMARKS_FILE"
+
+switch_to_first_tab() {
+  # 1. Preferred on Wayland/COSMIC: kernel-level /dev/uinput via python3-evdev
+  #    wtype's zwp_virtual_keyboard_v1 custom keymap is ignored by Chromium/Brave under COSMIC.
+  if [ -w /dev/uinput ] && command -v python3 &>/dev/null; then
+    if python3 -c '
+import time
+from evdev import UInput, ecodes as e
+
+with UInput({e.EV_KEY: [e.KEY_LEFTCTRL, e.KEY_1]}) as ui:
+    # Allow compositor/libinput to register the new virtual keyboard device
+    time.sleep(0.3)
+    ui.write(e.EV_KEY, e.KEY_LEFTCTRL, 1)
+    ui.syn()
+    time.sleep(0.05)
+    ui.write(e.EV_KEY, e.KEY_1, 1)
+    ui.syn()
+    time.sleep(0.05)
+    ui.write(e.EV_KEY, e.KEY_1, 0)
+    ui.syn()
+    time.sleep(0.05)
+    ui.write(e.EV_KEY, e.KEY_LEFTCTRL, 0)
+    ui.syn()
+    time.sleep(0.1)
+' 2>/dev/null; then
+      return 0
+    fi
+  fi
+
+  # 2. Fallback Wayland tools (ydotool / wtype)
+  if command -v ydotool &>/dev/null; then
+    ydotool key 29:1 2:1 2:0 29:0 2>/dev/null && return 0
+  fi
+  if command -v wtype &>/dev/null; then
+    wtype -M ctrl -s 100 -k 1 -s 100 -m ctrl 2>/dev/null || true
+  fi
+}
 
 run_url_opener() {
   local bookmarks_file="${BOOKMARKS_FILE:-$AIURLS_BOOKMARKS_FILE}"
@@ -68,13 +113,10 @@ run_url_opener() {
     fi
   done
 
-  sleep 1
-  if [ -n "$WAYLAND_DISPLAY" ] && command -v wtype &>/dev/null; then
-    wtype -M ctrl -k 1 -m ctrl 2>/dev/null || true
-  elif command -v xdotool &>/dev/null; then
-    xdotool key ctrl+1 2>/dev/null || true
-  fi
-  sleep 1
+  # Wait for the last tab to open and settle before switching to the first tab
+  sleep 1.5
+  switch_to_first_tab
+  sleep 0.5
 }
 
 # Internal execution mode when invoked inside tmux
@@ -119,9 +161,17 @@ if tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
   fi
 fi
 
+# Forward display and session environment variables into the tmux session
+tmux_env_args=()
+for var in WAYLAND_DISPLAY XDG_RUNTIME_DIR XDG_SESSION_TYPE XDG_CURRENT_DESKTOP; do
+  if [ -n "${!var:-}" ]; then
+    tmux_env_args+=(-e "$var=${!var}")
+  fi
+done
+
 # Create a new tmux session running the URL opener directly
 SCRIPT_PATH="$(command -v "$0" 2>/dev/null || realpath "$0")"
-if ! tmux new-session -d -s "$SESSION_NAME" bash "$SCRIPT_PATH" --internal-run "$BOOKMARKS_FILE"; then
+if ! tmux new-session -d -s "$SESSION_NAME" "${tmux_env_args[@]}" bash "$SCRIPT_PATH" --internal-run "$BOOKMARKS_FILE"; then
   echo "Error: Failed to create new tmux session"
   exit 1
 fi

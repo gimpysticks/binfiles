@@ -165,7 +165,7 @@
       {
         "icon": "_favicon",
         "name": "MLS",
-        "url": "https://tv.apple.com/us/channel/mls-season-pass/tvs.sbd.7000"
+        "url": "https://www.mlssoccer.com/"
       },
       {
         "icon": "_favicon",
@@ -191,11 +191,6 @@
         "icon": "_favicon",
         "name": "Midjourney",
         "url": "https://midjourney.com"
-      },
-      {
-        "icon": "_favicon",
-        "name": "Netflix",
-        "url": "https://www.netflix.com/browse"
       },
       {
         "icon": "_favicon",
