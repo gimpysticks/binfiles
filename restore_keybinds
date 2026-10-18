@@ -6,8 +6,10 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SOURCE_RON="$SCRIPT_DIR/cosmic-custom-keybindings.ron"
+SOURCE_SYS_ACTIONS="$SCRIPT_DIR/cosmic-system-actions.ron"
 TARGET_DIR="$HOME/.config/cosmic/com.system76.CosmicSettings.Shortcuts/v1"
 TARGET_FILE="$TARGET_DIR/custom"
+TARGET_SYS_ACTIONS="$TARGET_DIR/system_actions"
 
 echo "=== Restoring Pop!_OS COSMIC Custom Keybindings ==="
 
@@ -45,4 +47,10 @@ EOF
 mkdir -p "$TARGET_DIR"
 cp -f "$SOURCE_RON" "$TARGET_FILE"
 echo "✓ Restored to $TARGET_FILE"
+
+if [ -f "$SOURCE_SYS_ACTIONS" ]; then
+    cp -f "$SOURCE_SYS_ACTIONS" "$TARGET_SYS_ACTIONS"
+    echo "✓ Restored system_actions to $TARGET_SYS_ACTIONS"
+fi
+
 echo "=== Keybindings restored successfully ==="

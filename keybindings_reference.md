@@ -1,8 +1,9 @@
 # Pop!_OS Custom Keybindings Reference
 
-Last synced: `2026-10-06 15:04`
+Last synced: `2026-10-18 00:36`
 Live COSMIC Path: `~/.config/cosmic/com.system76.CosmicSettings.Shortcuts/v1/custom`  
 Repository Copy: [`cosmic-custom-keybindings.ron`](cosmic-custom-keybindings.ron)  
+System Actions Copy: [`cosmic-system-actions.ron`](cosmic-system-actions.ron)  
 Symlink: [`keybindings.ron`](keybindings.ron)  
 
 ---
@@ -10,9 +11,10 @@ Symlink: [`keybindings.ron`](keybindings.ron)
 ## Overview
 
 - **Active in Pop!_OS COSMIC**: 43
+- **Global Wayland Input Daemons (`evdev`)**: 2 (`discord-ptt` Push-to-Talk & Mode Toggle)
 - **Removed - app not installed**: 6
 - **Removed - explicitly requested**: 2 (Guake, Digikam)
-- **Preserved COSMIC Defaults**: 1
+- **Preserved COSMIC Defaults**: 1 (`Super + t` -> `cosmic-term` in `system_actions`)
 
 ---
 
@@ -32,10 +34,12 @@ Guake has been fully uninstalled and replaced by TildaZ as the drop-down termina
 | :--- | :--- | :--- | :--- |
 | `F12` | TildaZ_0 | `/home/sticks/.local/opt/tildaz/tildaz --toggle 0` | Replaces Guake; toggles TildaZ drop-down terminal |
 | `Super + e` | Thunderbird | `gtk-launch thunderbird` |  |
+| `Super + Escape` | Lock Screen | `loginctl lock-session` | Manual session lock |
 | `Super + F10` | Youtube Music | `xdg-open https://music.youtube.com/` |  |
 | `Super + F2` | VimWiki | `gnome-terminal -- zsh -l -c "nvim"` | routed through `~/.local/bin/gnome-terminal` shim to `cosmic-term` |
 | `Super + F3` | Gimp | `/bin/gimp` |  |
 | `Super + F4` | Inkscape | `/bin/inkscape` |  |
+| `Super + l` | Lock Screen | `loginctl lock-session` | Manual session lock |
 | `Super + Ctrl + a` | AI Urls | `/home/sticks/bin/aiurls` |  |
 | `Super + Ctrl + b` | Bpytop | `gnome-terminal -- bash -c "bpytop"` |  |
 | `Super + Ctrl + c` | Connections | `flatpak run org.gnome.Connections` |  |
@@ -63,16 +67,25 @@ Guake has been fully uninstalled and replaced by TildaZ as the drop-down termina
 | `Super + Shift + o` | ChatGpt | `xdg-open https://chatgpt.com/` |  |
 | `Super + Shift + s` | Shotcut | `flatpak run org.shotcut.Shotcut` |  |
 | `Super + Shift + t` | Twitch | `/usr/bin/firefox www.twitch.com` |  |
-| `Ctrl + space` | Handy Speech to Text | `/home/sticks/.local/bin/handy --toggle-transcription` |  |
+| `Ctrl + space` | Handy Speech to Text | `/home/sticks/.local/bin/handy --toggle-transcription` | Toggle Handy speech-to-text transcription (USR2 signal via wrapper) |
 | `Ctrl + Alt + BackSpace` | Restart X | `/home/sticks/bin/restartx` |  |
 | `Ctrl + Alt + Left` | Variety Previous | `/usr/bin/variety --previous` |  |
 | `Ctrl + Alt + Right` | Variety Next | `variety --next` |  |
 | `Alt + Left` | variety Previous | `/usr/bin/variety --previous` |  |
 | `Alt + Right` | Variety Next | `/usr/bin/variety --next` |  |
-| `Super + l` | Lock Screen | `loginctl lock-session` | Manual session lock |
-| `Super + Escape` | Lock Screen | `loginctl lock-session` | Manual session lock |
 | `Alt + Shift + s` | Standard Notes | `xdg-open https://app.standardnotes.com/` |  |
 | `Alt + Shift + w` | Work URLS | `bash -c /home/sticks/bin/workurls` |  |
+
+---
+
+## Global Wayland Input Daemons (`evdev` / PipeWire)
+
+In addition to COSMIC's `custom` shortcuts, global hardware-level hotkeys are handled by background user services:
+
+| Key Combination | Daemon / Script | Action | Notes |
+| :--- | :--- | :--- | :--- |
+| `Ctrl + Alt + v` *(Hold)* | `discord-ptt` (`discord-ptt.service`) | Push-to-Talk (Unmute while held) | Gates Discord Standalone & Browser WebRTC mic streams via `pactl` when PTT mode is `ON` |
+| `Ctrl + Alt + Shift + v` | `discord-ptt` (`discord-ptt.service`) | Toggle PTT Mode ↔ Open Mic Mode | Defaults to `OFF (Open Mic)` on startup so browser web apps (e.g., Gemini) work normally |
 
 ---
 

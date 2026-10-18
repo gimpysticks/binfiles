@@ -311,7 +311,6 @@
         key: "m",
         description: Some("Monitor Off"),
     ): Spawn("/home/sticks/bin/monitor-off"),
-    (modifiers: [], key: "F12", description: Some("TildaZ_0")): Spawn("/home/sticks/.local/opt/tildaz/tildaz --toggle 0"),
     (
         modifiers: [
             Super,
@@ -326,5 +325,6 @@
         key: "Escape",
         description: Some("Lock Screen"),
     ): Spawn("loginctl lock-session"),
+    (modifiers: [], key: "F12", description: Some("TildaZ_0")): Spawn("/home/sticks/.local/opt/tildaz/tildaz --toggle 0"),
 }
 

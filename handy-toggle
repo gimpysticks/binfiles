@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Fast signal-based toggle and launcher wrapper for Handy AppImage
+
+APPIMAGE="/home/sticks/Applications/Handy.AppImage"
+
+if [[ "$1" == "--toggle-transcription" ]]; then
+    PID=$(pidof -s handy 2>/dev/null)
+    if [[ -n "$PID" ]]; then
+        # Debounce to prevent duplicate triggers within 250ms (key repeat / rapid double presses)
+        LOCK_FILE="/dev/shm/handy_toggle_${UID}"
+        NOW=$(date +%s%3N)
+        if [[ -f "$LOCK_FILE" ]]; then
+            LAST=$(<"$LOCK_FILE")
+            DIFF=$(( NOW - LAST ))
+            if (( DIFF >= 0 && DIFF < 250 )); then
+                exit 0
+            fi
+        fi
+        echo "$NOW" > "$LOCK_FILE"
+        kill -USR2 "$PID"
+        exit 0
+    fi
+fi
+
+exec "$APPIMAGE" "$@"

@@ -18,8 +18,10 @@ from datetime import datetime
 BIN_DIR = os.path.dirname(os.path.abspath(__file__))
 LIVE_COSMIC_DIR = os.path.expanduser("~/.config/cosmic/com.system76.CosmicSettings.Shortcuts/v1")
 LIVE_CUSTOM_FILE = os.path.join(LIVE_COSMIC_DIR, "custom")
+LIVE_SYS_ACTIONS_FILE = os.path.join(LIVE_COSMIC_DIR, "system_actions")
 
 BIN_RON_FILE = os.path.join(BIN_DIR, "cosmic-custom-keybindings.ron")
+BIN_SYS_ACTIONS_FILE = os.path.join(BIN_DIR, "cosmic-system-actions.ron")
 BIN_SYMLINK = os.path.join(BIN_DIR, "keybindings.ron")
 REF_MD_FILE = os.path.join(BIN_DIR, "keybindings_reference.md")
 
@@ -94,6 +96,14 @@ def sync_from_cosmic():
         f.write(live_content)
     print(f"✓ Backed up to repository: {BIN_RON_FILE}")
 
+    # 2. Back up system_actions if present
+    if os.path.isfile(LIVE_SYS_ACTIONS_FILE):
+        with open(LIVE_SYS_ACTIONS_FILE, "r", encoding="utf-8") as f:
+            sys_actions_content = f.read()
+        with open(BIN_SYS_ACTIONS_FILE, "w", encoding="utf-8") as f:
+            f.write(sys_actions_content)
+        print(f"✓ Backed up system_actions to repository: {BIN_SYS_ACTIONS_FILE}")
+
     # 3. Create or update symlink ~/bin/keybindings.ron
     try:
         if os.path.islink(BIN_SYMLINK) or os.path.isfile(BIN_SYMLINK):
@@ -115,9 +125,12 @@ def update_markdown_reference(matches):
         ("F12", "TildaZ_0"): "Replaces Guake; toggles TildaZ drop-down terminal",
         ("Super + Ctrl + g", "agy"): "Launch Antigravity CLI in cosmic-term",
         ("Super + Shift + m", "Monitor Off"): "Turn off monitor power (DPMS sleep) via wlopm",
+        ("Ctrl + space", "Handy Speech to Text"): "Toggle Handy speech-to-text transcription (USR2 signal via wrapper)",
+        ("Super + l", "Lock Screen"): "Manual session lock",
+        ("Super + Escape", "Lock Screen"): "Manual session lock",
     }
     for k, v in special_notes.items():
-        if k not in existing_notes:
+        if not existing_notes.get(k):
             existing_notes[k] = v
 
     order = {"Super": 1, "Ctrl": 2, "Alt": 3, "Shift": 4}
@@ -204,11 +217,21 @@ For your reference, Pop!_OS COSMIC includes these built-in system shortcuts that
 | `Alt + Tab` | Window Switcher |
 | `Print` | Interactive Screenshot |"""
 
+    daemons_section = """## Global Wayland Input Daemons (`evdev` / PipeWire)
+
+In addition to COSMIC's `custom` shortcuts, global hardware-level hotkeys are handled by background user services:
+
+| Key Combination | Daemon / Script | Action | Notes |
+| :--- | :--- | :--- | :--- |
+| `Ctrl + Alt + v` *(Hold)* | `discord-ptt` (`discord-ptt.service`) | Push-to-Talk (Unmute while held) | Gates Discord Standalone & Browser WebRTC mic streams via `pactl` when PTT mode is `ON` |
+| `Ctrl + Alt + Shift + v` | `discord-ptt` (`discord-ptt.service`) | Toggle PTT Mode ↔ Open Mic Mode | Defaults to `OFF (Open Mic)` on startup so browser web apps (e.g., Gemini) work normally |"""
+
     md_content = f"""# Pop!_OS Custom Keybindings Reference
 
 Last synced: `{now_str}`
 Live COSMIC Path: `~/.config/cosmic/com.system76.CosmicSettings.Shortcuts/v1/custom`  
 Repository Copy: [`cosmic-custom-keybindings.ron`](cosmic-custom-keybindings.ron)  
+System Actions Copy: [`cosmic-system-actions.ron`](cosmic-system-actions.ron)  
 Symlink: [`keybindings.ron`](keybindings.ron)  
 
 ---
@@ -216,9 +239,10 @@ Symlink: [`keybindings.ron`](keybindings.ron)
 ## Overview
 
 - **Active in Pop!_OS COSMIC**: {len(entries)}
+- **Global Wayland Input Daemons (`evdev`)**: 2 (`discord-ptt` Push-to-Talk & Mode Toggle)
 - **Removed - app not installed**: 6
 - **Removed - explicitly requested**: 2 (Guake, Digikam)
-- **Preserved COSMIC Defaults**: 1
+- **Preserved COSMIC Defaults**: 1 (`Super + t` -> `cosmic-term` in `system_actions`)
 
 ---
 
@@ -229,6 +253,10 @@ Symlink: [`keybindings.ron`](keybindings.ron)
 ## Active Keybindings Table
 
 {table_block}
+
+---
+
+{daemons_section}
 
 ---
 

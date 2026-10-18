@@ -1,0 +1,329 @@
+#!/usr/bin/env python3
+"""
+Wayland Global Push-to-Talk (Ctrl+Alt+V) Daemon for Discord (Standalone & Web).
+Monitors kernel input devices via python3-evdev and gates PipeWire microphone
+streams (WEBRTC VoiceEngine / Browser WebRTC inputs) via pactl.
+
+Supports toggling between Push-to-Talk mode and Open Mic mode via:
+  - Hotkey: Ctrl+Alt+Shift+V
+  - CLI:    discord-ptt --toggle | --on | --off | --status
+"""
+
+import asyncio
+import json
+import os
+import signal
+import subprocess
+import sys
+from pathlib import Path
+from evdev import InputDevice, ecodes, list_devices
+
+RELEASE_DELAY_SEC = 0.09  # 90ms tail delay after key release
+STATE_FILE = Path(f"/dev/shm/discord_ptt_enabled_{os.getuid()}")
+
+CTRL_KEYS = {ecodes.KEY_LEFTCTRL, ecodes.KEY_RIGHTCTRL}
+ALT_KEYS = {ecodes.KEY_LEFTALT, ecodes.KEY_RIGHTALT}
+SHIFT_KEYS = {ecodes.KEY_LEFTSHIFT, ecodes.KEY_RIGHTSHIFT}
+PTT_KEY = ecodes.KEY_V
+
+TARGET_APP_NAMES = {
+    "webrtc voiceengine",
+    "brave input",
+    "chromium input",
+    "chrome input",
+    "vivaldi input",
+    "firefox",
+    "audioipc server",
+    "discord",
+    "vesktop",
+}
+
+TARGET_BINARIES = {
+    "discord",
+    "vesktop",
+    "brave",
+    "chromium",
+    "chrome",
+    "vivaldi-bin",
+    "firefox",
+    "firefox-bin",
+}
+
+TARGET_APP_IDS = {
+    "com.discordapp.discord",
+    "dev.vencord.vesktop",
+}
+
+
+def notify(title: str, body: str) -> None:
+    subprocess.Popen(
+        [
+            "notify-send",
+            "-a",
+            "Discord PTT",
+            "-i",
+            "audio-input-microphone",
+            "-t",
+            "2000",
+            title,
+            body,
+        ],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+
+
+def is_discord_or_browser_stream(stream: dict) -> bool:
+    props = stream.get("properties", {})
+    app_name = (props.get("application.name") or "").strip().lower()
+    node_name = (props.get("node.name") or "").strip().lower()
+    binary = (props.get("application.process.binary") or "").strip().lower()
+    app_id = (props.get("pipewire.access.portal.app_id") or "").strip().lower()
+
+    # Never touch Handy speech-to-text streams
+    if "handy" in app_name or "handy" in binary or "handy" in node_name:
+        return False
+
+    if (
+        app_name in TARGET_APP_NAMES
+        or node_name in TARGET_APP_NAMES
+        or binary in TARGET_BINARIES
+        or app_id in TARGET_APP_IDS
+    ):
+        return True
+    return False
+
+
+def get_target_stream_indices() -> list[int]:
+    try:
+        res = subprocess.run(
+            ["pactl", "--format=json", "list", "source-outputs"],
+            capture_output=True,
+            text=True,
+            timeout=2.0,
+            check=False,
+        )
+        if res.returncode != 0 or not res.stdout.strip():
+            return []
+        streams = json.loads(res.stdout)
+        return [
+            int(s["index"])
+            for s in streams
+            if "index" in s and is_discord_or_browser_stream(s)
+        ]
+    except Exception as exc:
+        print(f"[discord-ptt] Error listing source-outputs: {exc}", file=sys.stderr)
+        return []
+
+
+def apply_mute_state(muted: bool) -> None:
+    mute_arg = "1" if muted else "0"
+    indices = get_target_stream_indices()
+    for idx in indices:
+        subprocess.run(
+            ["pactl", "set-source-output-mute", str(idx), mute_arg],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+
+
+class PTTController:
+    def __init__(self) -> None:
+        self.pressed_keys: set[int] = set()
+        self.ptt_enabled: bool = False
+        self.ptt_active: bool = False
+        self.release_task: asyncio.Task | None = None
+        self.monitored_paths: set[str] = set()
+        self._write_state()
+
+    def _write_state(self) -> None:
+        try:
+            STATE_FILE.write_text("1" if self.ptt_enabled else "0")
+        except Exception:
+            pass
+
+    def set_enabled(self, enabled: bool, send_notification: bool = True) -> None:
+        self.ptt_enabled = enabled
+        self._write_state()
+        if self.release_task and not self.release_task.done():
+            self.release_task.cancel()
+        self.ptt_active = False
+
+        if self.ptt_enabled:
+            apply_mute_state(muted=True)
+            if send_notification:
+                notify("Discord Push-to-Talk: ON", "Mic muted — hold Ctrl+Alt+V to talk.")
+        else:
+            apply_mute_state(muted=False)
+            if send_notification:
+                notify("Discord Push-to-Talk: OFF", "Open Mic active (Voice Activity).")
+
+    def toggle_enabled(self) -> None:
+        self.set_enabled(not self.ptt_enabled, send_notification=True)
+
+    def _has_ctrl_alt(self) -> bool:
+        return bool(self.pressed_keys & CTRL_KEYS) and bool(self.pressed_keys & ALT_KEYS)
+
+    def _has_shift(self) -> bool:
+        return bool(self.pressed_keys & SHIFT_KEYS)
+
+    def on_key_event(self, code: int, value: int) -> None:
+        # value: 1 = keydown, 2 = keyhold/repeat, 0 = keyup
+        if value == 1:
+            self.pressed_keys.add(code)
+            # Check for Ctrl+Alt+Shift+V mode toggle on initial keydown of V
+            if code == PTT_KEY and self._has_ctrl_alt() and self._has_shift():
+                self.toggle_enabled()
+                return
+
+            if not self.ptt_enabled:
+                return
+
+            if not self.ptt_active and self._has_ctrl_alt() and not self._has_shift() and PTT_KEY in self.pressed_keys:
+                if self.release_task and not self.release_task.done():
+                    self.release_task.cancel()
+                self.ptt_active = True
+                apply_mute_state(muted=False)
+            elif self.ptt_active and code == PTT_KEY:
+                if self.release_task and not self.release_task.done():
+                    self.release_task.cancel()
+
+        elif value == 2:
+            self.pressed_keys.add(code)
+            if self.ptt_enabled and self.ptt_active and code == PTT_KEY:
+                if self.release_task and not self.release_task.done():
+                    self.release_task.cancel()
+
+        elif value == 0:
+            self.pressed_keys.discard(code)
+            if not self.ptt_enabled:
+                return
+            if self.ptt_active and PTT_KEY not in self.pressed_keys:
+                if self.release_task and not self.release_task.done():
+                    self.release_task.cancel()
+                self.release_task = asyncio.create_task(self._delayed_mute())
+
+    async def _delayed_mute(self) -> None:
+        try:
+            await asyncio.sleep(RELEASE_DELAY_SEC)
+            if self.ptt_enabled:
+                self.ptt_active = False
+                apply_mute_state(muted=True)
+        except asyncio.CancelledError:
+            pass
+
+    async def monitor_device(self, dev: InputDevice) -> None:
+        path = dev.path
+        try:
+            async for event in dev.async_read_loop():
+                if event.type == ecodes.EV_KEY:
+                    self.on_key_event(event.code, event.value)
+        except Exception:
+            pass
+        finally:
+            self.monitored_paths.discard(path)
+            try:
+                dev.close()
+            except Exception:
+                pass
+
+    async def device_scanner_loop(self) -> None:
+        while True:
+            for path in list_devices():
+                if path in self.monitored_paths:
+                    continue
+                try:
+                    dev = InputDevice(path)
+                    caps = dev.capabilities()
+                    key_caps = caps.get(ecodes.EV_KEY, [])
+                    if PTT_KEY in key_caps:
+                        self.monitored_paths.add(path)
+                        print(f"[discord-ptt] Attached to keyboard: {dev.name} ({path})", flush=True)
+                        asyncio.create_task(self.monitor_device(dev))
+                    else:
+                        dev.close()
+                except Exception:
+                    pass
+            await asyncio.sleep(5.0)
+
+    async def pactl_subscribe_loop(self) -> None:
+        apply_mute_state(muted=(self.ptt_enabled and not self.ptt_active))
+        while True:
+            try:
+                proc = await asyncio.create_subprocess_exec(
+                    "pactl",
+                    "subscribe",
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.DEVNULL,
+                )
+                assert proc.stdout is not None
+                async for raw_line in proc.stdout:
+                    line = raw_line.decode("utf-8", errors="ignore")
+                    if "source-output" in line and ("'new'" in line or "new" in line):
+                        apply_mute_state(muted=(self.ptt_enabled and not self.ptt_active))
+                await proc.wait()
+            except Exception as exc:
+                print(f"[discord-ptt] pactl subscribe error: {exc}", file=sys.stderr)
+            await asyncio.sleep(2.0)
+
+    async def run(self) -> None:
+        loop = asyncio.get_running_loop()
+        loop.add_signal_handler(signal.SIGUSR1, self.toggle_enabled)
+        loop.add_signal_handler(signal.SIGUSR2, lambda: self.set_enabled(True))
+        await asyncio.gather(
+            self.device_scanner_loop(),
+            self.pactl_subscribe_loop(),
+        )
+
+
+def send_signal_to_daemon(sig: int) -> bool:
+    res = subprocess.run(
+        ["systemctl", "--user", "show", "-p", "MainPID", "--value", "discord-ptt.service"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    pid_str = res.stdout.strip()
+    if pid_str and pid_str.isdigit() and int(pid_str) > 0:
+        os.kill(int(pid_str), sig)
+        return True
+    return False
+
+
+def handle_cli(arg: str) -> int:
+    enabled = STATE_FILE.exists() and STATE_FILE.read_text().strip() == "1"
+    if arg == "--status":
+        print("ON (Push-to-Talk)" if enabled else "OFF (Open Mic)")
+        return 0
+    if arg == "--toggle":
+        if send_signal_to_daemon(signal.SIGUSR1):
+            return 0
+    elif arg == "--on":
+        if not enabled:
+            send_signal_to_daemon(signal.SIGUSR1)
+        return 0
+    elif arg == "--off":
+        if enabled:
+            send_signal_to_daemon(signal.SIGUSR1)
+        return 0
+    print(f"Usage: {sys.argv[0]} [--toggle | --on | --off | --status]", file=sys.stderr)
+    return 1
+
+
+def main() -> None:
+    if len(sys.argv) > 1:
+        sys.exit(handle_cli(sys.argv[1]))
+
+    controller = PTTController()
+    try:
+        asyncio.run(controller.run())
+    except KeyboardInterrupt:
+        pass
+    finally:
+        # Unmute streams on clean shutdown so mic isn't left stuck muted if service stops
+        apply_mute_state(muted=False)
+
+
+if __name__ == "__main__":
+    main()
