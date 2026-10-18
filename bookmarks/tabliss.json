@@ -138,6 +138,11 @@
         "url": "https://gemini.google.com"
       },
       {
+        "icon": "_favicon",
+        "name": "Gemini_Notebook",
+        "url": "https://notebooklm.google.com/"
+      },
+      {
         "url": "https://aistudio.google.com/prompts/new_chat",
         "name": "GoogleAI Studio",
         "icon": "_favicon"
@@ -194,11 +199,6 @@
       },
       {
         "icon": "_favicon",
-        "name": "Gemini_Notebook",
-        "url": "https://notebooklm.google.com/"
-      },
-      {
-        "icon": "_favicon",
         "name": "Paypal",
         "url": "https://www.paypal.com"
       },
@@ -246,6 +246,11 @@
         "icon": "_favicon",
         "name": "Youtube",
         "url": "https://www.youtube.com"
+      },
+      {
+        "icon": "_favicon",
+        "name": "Zets",
+        "url": "http://127.0.0.1:8765/index.md"
       }
     ],
     "visible": true

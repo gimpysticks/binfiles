@@ -1,0 +1,338 @@
+#!/usr/bin/env python3
+"""Lightweight local HTTP server for ~/zets with Markdown-to-HTML rendering."""
+
+import html
+import http.server
+import os
+import re
+import socketserver
+import urllib.parse
+from pathlib import Path
+
+import markdown
+
+ZETS_DIR = Path.home() / "zets"
+HOST = "127.0.0.1"
+PORT = 8765
+
+FRONTMATTER_RE = re.compile(r"\A---\s*\n(.*?)\n---\s*\n", re.DOTALL)
+WIKILINK_RE = re.compile(r"\[\[([^\]|]+)(?:\|([^\]]+))?\]\]")
+
+SVG_FAVICON = b"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="14" fill="#1e293b"/>
+  <path d="M16 18h32v6L25 46h23v6H16v-6l23-22H16z" fill="#38bdf8"/>
+</svg>"""
+
+HTML_TEMPLATE = """<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{title} — Zets</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="alternate icon" href="/favicon.ico">
+  <style>
+    :root {{
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --border: #334155;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-hover: #7dd3fc;
+      --code-bg: #0b1120;
+    }}
+    * {{ box-sizing: border-box; }}
+    body {{
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Ubuntu, sans-serif;
+      line-height: 1.65;
+    }}
+    header {{
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border);
+      padding: 0.75rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }}
+    .nav-left {{
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-weight: 600;
+    }}
+    .nav-left a {{
+      color: var(--accent);
+      text-decoration: none;
+    }}
+    .nav-left a:hover {{
+      color: var(--accent-hover);
+      text-decoration: underline;
+    }}
+    .nav-right {{
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }}
+    #filter-input {{
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.4rem 0.75rem;
+      font-size: 0.9rem;
+      width: 240px;
+      outline: none;
+    }}
+    #filter-input:focus {{
+      border-color: var(--accent);
+    }}
+    .raw-link {{
+      color: var(--muted);
+      font-size: 0.85rem;
+      text-decoration: none;
+      padding: 0.3rem 0.6rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+    }}
+    .raw-link:hover {{
+      color: var(--text);
+      border-color: var(--muted);
+    }}
+    main {{
+      max-width: 900px;
+      margin: 2rem auto;
+      padding: 0 1.5rem 4rem;
+    }}
+    .meta {{
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.6rem 1rem;
+      margin-bottom: 1.5rem;
+      font-size: 0.85rem;
+      color: var(--muted);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      white-space: pre-wrap;
+    }}
+    h1, h2, h3, h4 {{
+      color: #f8fafc;
+      margin-top: 1.6em;
+      margin-bottom: 0.6em;
+    }}
+    h1 {{
+      margin-top: 0.5em;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.35em;
+    }}
+    a {{
+      color: var(--accent);
+      text-decoration: none;
+    }}
+    a:hover {{
+      color: var(--accent-hover);
+      text-decoration: underline;
+    }}
+    pre {{
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      overflow-x: auto;
+    }}
+    code {{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.9em;
+      background: var(--surface);
+      padding: 0.15em 0.35em;
+      border-radius: 4px;
+    }}
+    pre code {{
+      background: none;
+      padding: 0;
+    }}
+    table {{
+      border-collapse: collapse;
+      width: 100%;
+      margin: 1rem 0;
+    }}
+    th, td {{
+      border: 1px solid var(--border);
+      padding: 0.5rem 0.75rem;
+      text-align: left;
+    }}
+    th {{
+      background: var(--surface);
+    }}
+    blockquote {{
+      border-left: 4px solid var(--accent);
+      margin: 1rem 0;
+      padding: 0.25rem 1rem;
+      color: var(--muted);
+      background: rgba(30, 41, 59, 0.4);
+      border-radius: 0 6px 6px 0;
+    }}
+    ul {{
+      padding-left: 1.4rem;
+    }}
+    li {{
+      margin: 0.25rem 0;
+    }}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="nav-left">
+      <a href="/index.md">Zets Index</a>
+      <span>/</span>
+      <span>{title}</span>
+    </div>
+    <div class="nav-right">
+      <input type="search" id="filter-input" placeholder="Filter links / text (/)..." autocomplete="off">
+      <a class="raw-link" href="?raw=1">Raw</a>
+    </div>
+  </header>
+  <main>
+    {meta_block}
+    <article id="content">
+      {body}
+    </article>
+  </main>
+  <script>
+    const input = document.getElementById('filter-input');
+    const items = Array.from(document.querySelectorAll('#content li'));
+    input.addEventListener('input', () => {{
+      const q = input.value.trim().toLowerCase();
+      for (const li of items) {{
+        li.style.display = (!q || li.textContent.toLowerCase().includes(q)) ? '' : 'none';
+      }}
+    }});
+    window.addEventListener('keydown', (e) => {{
+      if (e.key === '/' && document.activeElement !== input) {{
+        e.preventDefault();
+        input.focus();
+      }} else if (e.key === 'Escape' && document.activeElement === input) {{
+        input.value = '';
+        input.dispatchEvent(new Event('input'));
+        input.blur();
+      }}
+    }});
+  </script>
+</body>
+</html>
+"""
+
+
+def convert_wikilinks(text: str) -> str:
+    def repl(match: re.Match) -> str:
+        target = match.group(1).strip()
+        label = (match.group(2) or target).strip()
+        href = target if target.endswith(".md") else f"{target}.md"
+        return f"[{label}]({urllib.parse.quote(href)})"
+
+    return WIKILINK_RE.sub(repl, text)
+
+
+class ZetsHandler(http.server.SimpleHTTPRequestHandler):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, directory=str(ZETS_DIR), **kwargs)
+
+    def do_HEAD(self):
+        self.do_GET()
+
+    def do_GET(self):
+        parsed = urllib.parse.urlsplit(self.path)
+        req_path = urllib.parse.unquote(parsed.path)
+        query = urllib.parse.parse_qs(parsed.query)
+
+        if req_path in ("/favicon.ico", "/favicon.svg"):
+            self.send_response(200)
+            self.send_header("Content-Type", "image/svg+xml")
+            self.send_header("Content-Length", str(len(SVG_FAVICON)))
+            self.end_headers()
+            self.wfile.write(SVG_FAVICON)
+            return
+
+        if req_path == "/":
+            self.send_response(302)
+            self.send_header("Location", "/index.md")
+            self.end_headers()
+            return
+
+        rel = req_path.lstrip("/")
+        fs_path = (ZETS_DIR / rel).resolve()
+        try:
+            fs_path.relative_to(ZETS_DIR.resolve())
+        except ValueError:
+            self.send_error(403, "Forbidden")
+            return
+
+        if not fs_path.exists() and not rel.endswith(".md"):
+            md_candidate = (ZETS_DIR / f"{rel}.md").resolve()
+            if md_candidate.is_file():
+                fs_path = md_candidate
+
+        if fs_path.is_file() and fs_path.suffix.lower() == ".md":
+            raw_text = fs_path.read_text(encoding="utf-8", errors="replace")
+            if query.get("raw") == ["1"]:
+                data = raw_text.encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "text/plain; charset=utf-8")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+                return
+
+            meta_html = ""
+            m = FRONTMATTER_RE.match(raw_text)
+            if m:
+                meta_content = html.escape(m.group(1).strip())
+                meta_html = f'<div class="meta">{meta_content}</div>'
+                raw_text = raw_text[m.end():]
+
+            processed = convert_wikilinks(raw_text)
+            body_html = markdown.markdown(
+                processed,
+                extensions=["extra", "toc", "sane_lists"],
+            )
+            page = HTML_TEMPLATE.format(
+                title=html.escape(fs_path.stem),
+                meta_block=meta_html,
+                body=body_html,
+            ).encode("utf-8")
+
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(page)))
+            self.end_headers()
+            self.wfile.write(page)
+            return
+
+        return super().do_GET()
+
+    def log_message(self, format, *args):
+        pass
+
+
+class ReusableThreadingHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
+    allow_reuse_address = True
+    daemon_threads = True
+
+
+def main():
+    os.chdir(ZETS_DIR)
+    with ReusableThreadingHTTPServer((HOST, PORT), ZetsHandler) as httpd:
+        httpd.serve_forever()
+
+
+if __name__ == "__main__":
+    main()
