@@ -10,6 +10,7 @@ Existing subfolders and other directories are left untouched.
 import os
 import sys
 import datetime
+import filecmp
 import shutil
 from collections import defaultdict
 
@@ -89,13 +90,14 @@ def organize_folder(target_dir: str):
 
             dst_path = os.path.join(dst_dir, entry)
             if os.path.exists(dst_path):
-                # Handle rare collision safely by preserving both
-                base, ext = os.path.splitext(entry)
-                timestamp_suffix = dt.strftime("%Y%m%d_%H%M%S")
-                dst_path = os.path.join(dst_dir, f"{base}_{timestamp_suffix}{ext}")
-                if os.path.exists(dst_path):
-                    errors.append(f"Destination already exists, skipped: {entry}")
-                    continue
+                if not filecmp.cmp(src_path, dst_path, shallow=False):
+                    # Handle collision of different files safely by preserving both
+                    base, ext = os.path.splitext(entry)
+                    timestamp_suffix = dt.strftime("%Y%m%d_%H%M%S")
+                    dst_path = os.path.join(dst_dir, f"{base}_{timestamp_suffix}{ext}")
+                    if os.path.exists(dst_path):
+                        errors.append(f"Destination already exists, skipped: {entry}")
+                        continue
 
             shutil.move(src_path, dst_path)
             moved_counts[(year_str, month_str)] += 1

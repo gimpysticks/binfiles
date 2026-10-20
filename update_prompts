@@ -1,0 +1,41 @@
+#!/bin/bash
+
+# Script to update $PROMPTS_LIB/index.md with current directory contents (newest edits first)
+# Usage: update_prompts
+
+set -euo pipefail
+
+PROMPTS_LIB="${PROMPTS_LIB:-${prompts_Lib:-$HOME/Documents/Prompt_library}}"
+PROMPTS_DIR="${PROMPTS_LIB%/}"
+HOME_MD="$PROMPTS_DIR/index.md"
+
+if [[ ! -d "$PROMPTS_DIR" ]]; then
+    echo "Error: $PROMPTS_DIR directory does not exist" >&2
+    exit 1
+fi
+
+echo "Updating $HOME_MD with current directory contents (latest edits at the top)..."
+
+temp_file=$(mktemp)
+count=0
+
+{
+    printf -- '---\ncreated: %s\n---\n\n\n# Generated Links\n\n' "$(date '+%Y-%m-%d')"
+    while IFS=$'\t' read -r _ts fname; do
+        link="${fname// /%20}"
+        link="${link//#/%23}"
+        link="${link//\'/%27}"
+        printf -- '- [%s](%s)\n' "${fname%.md}" "$link"
+        count=$(( count + 1 ))
+    done < <(find "$PROMPTS_DIR" -maxdepth 1 -name '*.md' -not -name 'index.md' -printf '%T@\t%f\n' | sort -rn)
+} > "$temp_file"
+
+if cp "$temp_file" "$HOME_MD"; then
+    rm -f "$temp_file"
+    echo "index.md updated successfully!"
+    echo "Total files indexed: $count (sorted by modification time, newest first)"
+else
+    echo "Error: Failed to update $HOME_MD" >&2
+    rm -f "$temp_file"
+    exit 1
+fi

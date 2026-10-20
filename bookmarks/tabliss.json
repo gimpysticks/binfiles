@@ -209,6 +209,11 @@
       },
       {
         "icon": "_favicon",
+        "name": "Prompts",
+        "url": "http://127.0.0.1:8766/index.md"
+      },
+      {
+        "icon": "_favicon",
         "name": "Rumble",
         "url": "https://rumble.com"
       },
