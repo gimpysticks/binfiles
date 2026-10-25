@@ -8,14 +8,18 @@
 
 # Default behavior
 generate_pdf=false
+generate_epub=false
 recursive=false
 output_dir="$HOME/Documents/Zets_combined"
 
 # Parse command-line options
-while getopts ":pro:" opt; do
+while getopts ":pro:e" opt; do
   case ${opt} in
     p )
       generate_pdf=true
+      ;;
+    e )
+      generate_epub=true
       ;;
     r )
       recursive=true
@@ -146,5 +150,35 @@ if [ "$generate_pdf" = true ]; then
         else
             echo "Failed to convert to HTML"
         fi
+    fi
+fi
+
+if [ "$generate_epub" = true ]; then
+    # Dependency check for EPUB generation
+    if ! command -v pandoc &> /dev/null; then
+        echo "Error: pandoc is not installed. Please install it to generate EPUBs."
+        exit 1
+    fi
+
+    epub_file="${output_file%.md}.epub"
+    echo "Converting to EPUB using pandoc..."
+
+    # Format human-readable title from directory name
+    doc_title="${dir_name//_/ } ($(date +'%Y-%m-%d'))"
+
+    pandoc --from=markdown-yaml_metadata_block-tex_math_dollars \
+        "$output_file" -o "$epub_file" \
+        --toc \
+        --toc-depth=2 \
+        --split-level=1 \
+        --metadata title="$doc_title" \
+        --metadata author="${USER:-Sticks}" \
+        --metadata lang="en" 2>/dev/null
+
+    if [ -f "$epub_file" ]; then
+        echo "Successfully created EPUB: $epub_file"
+    else
+        echo "Failed to create EPUB"
+        exit 1
     fi
 fi

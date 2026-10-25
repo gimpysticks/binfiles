@@ -1,0 +1,282 @@
+#!/usr/bin/env python3
+"""
+discord-autojoin: Automatically connect the local Discord desktop client
+to a designated voice channel using Discord's local IPC / RPC socket.
+"""
+
+import sys
+import os
+import glob
+import time
+import json
+import struct
+import socket
+import urllib.request
+import urllib.parse
+from pathlib import Path
+
+# Defaults
+DEFAULT_CHANNEL_ID = "411165775567519744"  # "Live Audio with Sticks/Papaw" on server 411154143567282177
+TOKEN_FILE = Path.home() / ".config" / "discord-autojoin.json"
+
+def get_credentials():
+    client_id = os.environ.get("DISCORD_CLIENT_ID")
+    client_secret = os.environ.get("DISCORD_CLIENT_SECRET")
+    
+    if not client_id or not client_secret:
+        envrc = Path.home() / ".envrc"
+        if envrc.exists():
+            with open(envrc, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line.startswith("export DISCORD_CLIENT_ID="):
+                        client_id = line.split("=", 1)[1].strip("\"'")
+                    elif line.startswith("export DISCORD_CLIENT_SECRET="):
+                        client_secret = line.split("=", 1)[1].strip("\"'")
+                        
+    if not client_id or not client_secret:
+        print("[!] Missing DISCORD_CLIENT_ID or DISCORD_CLIENT_SECRET.", file=sys.stderr)
+        sys.exit(1)
+        
+    return client_id, client_secret
+
+def find_ipc_socket():
+    # Candidates for flatpak and host discord IPC sockets
+    candidates = [
+        f"/run/user/{os.getuid()}/app/com.discordapp.Discord/discord-ipc-0",
+        f"/run/user/{os.getuid()}/discord-ipc-0",
+    ]
+    # Wildcards in runtime dir
+    candidates.extend(glob.glob(f"/run/user/{os.getuid()}/**/discord-ipc-*", recursive=True))
+    
+    for path in candidates:
+        if os.path.exists(path):
+            try:
+                s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                s.connect(path)
+                s.close()
+                return path
+            except OSError:
+                continue
+    return None
+
+class DiscordIPC:
+    def __init__(self, socket_path, client_id):
+        self.socket_path = socket_path
+        self.client_id = client_id
+        self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        self.nonce = 0
+
+    def connect(self):
+        self.sock.connect(self.socket_path)
+        # Opcode 0 = Handshake
+        payload = json.dumps({"v": 1, "client_id": self.client_id}).encode("utf-8")
+        self.sock.sendall(struct.pack("<II", 0, len(payload)) + payload)
+        op, data = self.recv()
+        if op != 1 or data.get("evt") != "READY":
+            raise RuntimeError(f"Unexpected handshake response: {data}")
+
+    def send_cmd(self, cmd, args):
+        self.nonce += 1
+        nonce_str = str(self.nonce)
+        msg = {
+            "cmd": cmd,
+            "args": args,
+            "nonce": nonce_str
+        }
+        data = json.dumps(msg).encode("utf-8")
+        self.sock.sendall(struct.pack("<II", 1, len(data)) + data)
+        return nonce_str
+
+    def recv(self, timeout=None):
+        if timeout:
+            self.sock.settimeout(timeout)
+        else:
+            self.sock.settimeout(None)
+            
+        header = self.sock.recv(8)
+        if len(header) < 8:
+            raise ConnectionError("Connection closed by Discord IPC.")
+        op, length = struct.unpack("<II", header)
+        
+        chunks = []
+        bytes_received = 0
+        while bytes_received < length:
+            chunk = self.sock.recv(min(length - bytes_received, 4096))
+            if not chunk:
+                break
+            chunks.append(chunk)
+            bytes_received += len(chunk)
+            
+        data = b"".join(chunks).decode("utf-8")
+        return op, json.loads(data)
+
+    def close(self):
+        try:
+            self.sock.close()
+        except Exception:
+            pass
+
+def exchange_code_for_token(client_id, client_secret, code):
+    url = "https://discord.com/api/v10/oauth2/token"
+    params = {
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "grant_type": "authorization_code",
+        "code": code
+    }
+    data = urllib.parse.urlencode(params).encode("utf-8")
+    req = urllib.request.Request(
+        url,
+        data=data,
+        headers={
+            "Content-Type": "application/x-www-form-urlencoded",
+            "User-Agent": "DiscordAutoJoin/1.0"
+        }
+    )
+    with urllib.request.urlopen(req) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+def refresh_access_token(client_id, client_secret, refresh_token):
+    url = "https://discord.com/api/v10/oauth2/token"
+    params = {
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "grant_type": "refresh_token",
+        "refresh_token": refresh_token
+    }
+    data = urllib.parse.urlencode(params).encode("utf-8")
+    req = urllib.request.Request(
+        url,
+        data=data,
+        headers={
+            "Content-Type": "application/x-www-form-urlencoded",
+            "User-Agent": "DiscordAutoJoin/1.0"
+        }
+    )
+    with urllib.request.urlopen(req) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+def load_cached_token():
+    if TOKEN_FILE.exists():
+        try:
+            with open(TOKEN_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return None
+    return None
+
+def save_token(token_data):
+    TOKEN_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(TOKEN_FILE, "w", encoding="utf-8") as f:
+        json.dump(token_data, f, indent=2)
+    os.chmod(TOKEN_FILE, 0o600)
+
+def main():
+    channel_id = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_CHANNEL_ID
+    client_id, client_secret = get_credentials()
+
+    # Wait for Discord IPC socket if Discord is still launching
+    ipc_path = None
+    for attempt in range(15):
+        ipc_path = find_ipc_socket()
+        if ipc_path:
+            break
+        time.sleep(1)
+
+    if not ipc_path:
+        print("[!] Discord IPC socket not found. Is Discord desktop running?", file=sys.stderr)
+        sys.exit(1)
+
+    ipc = DiscordIPC(ipc_path, client_id)
+    try:
+        ipc.connect()
+    except Exception as e:
+        print(f"[!] Failed to connect to Discord IPC: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    token_info = load_cached_token()
+    access_token = None
+
+    if token_info and "access_token" in token_info:
+        # Try authenticating with cached token
+        ipc.send_cmd("AUTHENTICATE", {"access_token": token_info["access_token"]})
+        try:
+            _, resp = ipc.recv(timeout=3.0)
+            if resp.get("cmd") == "AUTHENTICATE" and resp.get("evt") != "ERROR":
+                access_token = token_info["access_token"]
+        except Exception:
+            pass
+
+        # If expired and we have a refresh_token, refresh it
+        if not access_token and "refresh_token" in token_info:
+            try:
+                new_tokens = refresh_access_token(client_id, client_secret, token_info["refresh_token"])
+                save_token(new_tokens)
+                access_token = new_tokens["access_token"]
+                ipc.send_cmd("AUTHENTICATE", {"access_token": access_token})
+                _, resp = ipc.recv(timeout=3.0)
+                if resp.get("evt") == "ERROR":
+                    access_token = None
+            except Exception as e:
+                print(f"[*] Refresh token failed ({e}), requesting new authorization...")
+
+    if not access_token:
+        # If Discord is minimized to tray, focus the window so the user sees the prompt
+        try:
+            import subprocess
+            subprocess.Popen(["flatpak", "run", "com.discordapp.Discord"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception:
+            pass
+
+        print("[*] Requesting authorization from Discord client (check Discord UI)...")
+        ipc.send_cmd("AUTHORIZE", {
+            "client_id": client_id,
+            "scopes": ["rpc.voice.write"]
+        })
+        try:
+            # Wait up to 180s for user to click Authorize
+            _, resp = ipc.recv(timeout=180.0)
+            if resp.get("evt") == "ERROR":
+                print(f"[!] Authorization error: {resp.get('data')}", file=sys.stderr)
+                sys.exit(1)
+            code = resp.get("data", {}).get("code")
+            if not code:
+                print(f"[!] No code in authorization response: {resp}", file=sys.stderr)
+                sys.exit(1)
+                
+            token_data = exchange_code_for_token(client_id, client_secret, code)
+            save_token(token_data)
+            access_token = token_data["access_token"]
+            
+            # Authenticate with the newly acquired token
+            ipc.send_cmd("AUTHENTICATE", {"access_token": access_token})
+            _, auth_resp = ipc.recv(timeout=5.0)
+            if auth_resp.get("evt") == "ERROR":
+                print(f"[!] Authenticate error: {auth_resp}", file=sys.stderr)
+                sys.exit(1)
+        except socket.timeout:
+            print("[!] Timed out waiting for Discord authorization.", file=sys.stderr)
+            sys.exit(1)
+
+    # Issue SELECT_VOICE_CHANNEL
+    print(f"[*] Joining voice channel: {channel_id}...")
+    ipc.send_cmd("SELECT_VOICE_CHANNEL", {
+        "channel_id": channel_id,
+        "force": True
+    })
+    
+    try:
+        _, join_resp = ipc.recv(timeout=5.0)
+        if join_resp.get("evt") == "ERROR":
+            print(f"[!] Failed to join voice channel: {join_resp.get('data')}", file=sys.stderr)
+            sys.exit(1)
+        channel_name = join_resp.get("data", {}).get("name", channel_id)
+        print(f"[+] Successfully joined voice channel: {channel_name} ({channel_id})")
+    except socket.timeout:
+        print("[+] Request sent to join voice channel.")
+    finally:
+        ipc.close()
+
+if __name__ == "__main__":
+    main()

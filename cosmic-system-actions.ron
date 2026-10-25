@@ -1,4 +1,5 @@
 {
     Terminal: "cosmic-term",
     LockScreen: "true",
+    Screenshot: "snappea",
 }

@@ -89,6 +89,18 @@ assert_contains "$output" "nested content" "nested file content present"
 assert_contains "$output" "deep content" "deep file content present"
 assert_not_contains "$output" "old combined output" "pre-existing nested combined_*.md excluded"
 
+# Test EPUB export with -e
+(cd "$workdir" && bash "$SCRIPT" -r -e -o "$outdir") > "$workdir/.epub_run.log" 2>&1
+epub_file=$(find "$outdir" -maxdepth 1 -name 'combined_*.epub' | head -n1)
+if [ -n "$epub_file" ] && [ -f "$epub_file" ]; then
+    echo "PASS: epub file successfully generated ($epub_file)"
+    pass=$((pass + 1))
+else
+    echo "FAIL: epub file was not created"
+    cat "$workdir/.epub_run.log"
+    fail=$((fail + 1))
+fi
+
 echo
 echo "Results: $pass passed, $fail failed"
 [ "$fail" -eq 0 ]

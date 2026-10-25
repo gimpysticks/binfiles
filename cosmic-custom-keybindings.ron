@@ -40,6 +40,7 @@
     ): Spawn("flatpak run org.shotcut.Shotcut"),
     (
         modifiers: [
+            Super,
             Ctrl,
         ],
         key: "space",
@@ -146,7 +147,7 @@
         ],
         key: "d",
         description: Some("Discord"),
-    ): Spawn("flatpak run com.discordapp.Discord"),
+    ): Spawn("/home/sticks/.local/bin/discord"),
     (
         modifiers: [
             Alt,

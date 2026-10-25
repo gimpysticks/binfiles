@@ -1,15 +1,25 @@
 #!/bin/sh
-# lo.sh - Session logout script (COSMIC / GNOME / systemd)
+# lo.sh - COSMIC Session logout script (Local & Remote / ConnectBot compatible)
 
-if [ "${XDG_CURRENT_DESKTOP:-}" = "COSMIC" ] || [ -n "${COSMIC_SESSION_BUS:-}" ]; then
-    loginctl terminate-session "${XDG_SESSION_ID:-}" 2>/dev/null || loginctl terminate-user "$USER"
-    exit 0
+# 1. Attempt to find the active session ID attached to the physical display (seat0)
+SEAT_SESSION_ID=$(loginctl list-sessions --no-legend 2>/dev/null | awk '$4 == "seat0" {print $1; exit}')
+
+# 2. Determine target session: prefer seat0, fall back to current environment variable
+TARGET_SESSION="${SEAT_SESSION_ID:-${XDG_SESSION_ID:-}}"
+
+# 3. If running locally on the desktop under COSMIC, attempt graceful session termination first
+if [ -z "$SSH_CONNECTION" ] && [ -z "$SSH_CLIENT" ]; then
+  if [ "${XDG_CURRENT_DESKTOP:-}" = "COSMIC" ] || [ -n "${COSMIC_SESSION_BUS:-}" ]; then
+    if [ -n "$TARGET_SESSION" ]; then
+      loginctl terminate-session "$TARGET_SESSION" 2>/dev/null && exit 0
+    fi
+  fi
 fi
 
-if command -v gnome-session-quit >/dev/null 2>&1 && pgrep -x gnome-session >/dev/null 2>&1; then
-    gnome-session-quit --logout --no-prompt
-    exit 0
+# 4. Terminate the seat0 desktop session (handles remote ConnectBot / SSH calls)
+if [ -n "$TARGET_SESSION" ]; then
+  loginctl terminate-session "$TARGET_SESSION" 2>/dev/null && exit 0
 fi
 
-# Fallback: standard systemd session/user termination
-loginctl terminate-session "${XDG_SESSION_ID:-}" 2>/dev/null || loginctl terminate-user "$USER"
+# 5. Fallback: Terminate the user session entirely if no specific seat session was identified
+loginctl terminate-user "$USER"
