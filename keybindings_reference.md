@@ -1,6 +1,6 @@
 # Pop!_OS Custom Keybindings Reference
 
-Last synced: `2026-10-23 15:57`
+Last synced: `2026-10-26 14:44`
 Live COSMIC Path: `~/.config/cosmic/com.system76.CosmicSettings.Shortcuts/v1/custom`  
 Repository Copy: [`cosmic-custom-keybindings.ron`](cosmic-custom-keybindings.ron)  
 System Actions Copy: [`cosmic-system-actions.ron`](cosmic-system-actions.ron)  
@@ -39,6 +39,7 @@ Guake has been fully uninstalled and replaced by TildaZ as the drop-down termina
 | `Super + F2` | VimWiki | `gnome-terminal -- zsh -l -c "nvim"` | routed through `~/.local/bin/gnome-terminal` shim to `cosmic-term` |
 | `Super + F3` | Gimp | `/bin/gimp` |  |
 | `Super + F4` | Inkscape | `/bin/inkscape` |  |
+| `Super + F8` | Handy Speech to Text | `/home/sticks/.local/bin/handy --toggle-transcription` |  |
 | `Super + l` | Lock Screen | `loginctl lock-session` | Manual session lock |
 | `Super + Ctrl + a` | AI Urls | `/home/sticks/bin/aiurls` |  |
 | `Super + Ctrl + b` | Bpytop | `gnome-terminal -- bash -c "bpytop"` |  |
@@ -48,7 +49,6 @@ Guake has been fully uninstalled and replaced by TildaZ as the drop-down termina
 | `Super + Ctrl + o` | ChatGPT | `xdg-open https://www.chatgpt.com` |  |
 | `Super + Ctrl + r` | Read Human | `/home/sticks/bin/readgTTS` |  |
 | `Super + Ctrl + s` | Steam | `steam` | updated from flatpak to native `steam` install |
-| `Super + Ctrl + space` | Handy Speech to Text | `/home/sticks/.local/bin/handy --toggle-transcription` |  |
 | `Super + Ctrl + w` | War Thunder | `steam steam://rungameid/236390` | updated from flatpak to native `steam` install |
 | `Super + Alt + b` | Change Browser | `/home/sticks/bin/chgbrowser` |  |
 | `Super + Alt + d` | Discord Web | `xdg-open https://discord.com/channels/411154143567282177/1182420235672887397` |  |

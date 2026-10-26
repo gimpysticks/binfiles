@@ -41,9 +41,8 @@
     (
         modifiers: [
             Super,
-            Ctrl,
         ],
-        key: "space",
+        key: "F8",
         description: Some("Handy Speech to Text"),
     ): Spawn("/home/sticks/.local/bin/handy --toggle-transcription"),
     (
