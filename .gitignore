@@ -1,4 +1,7 @@
 .authorizations
+# zsh config files (contain environment secrets, machine-local aliases)
+.zshrc*
+/.zshrc*
 .envrc
 /home/sticks/bin/mkaccts.sh
 
