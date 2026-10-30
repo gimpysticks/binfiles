@@ -18,3 +18,10 @@ session-archives/**/*.log
 *.bak
 *.log
 obs-backup_*.tar.gz
+
+# Bookmark snapshots and sqlite database backups (contain auth tokens/URLs)
+bookmarks/*.backup_*
+bookmarks/places.sqlite*
+bookmarks/Bookmarks.backup_*
+bookmarks/bookmarks_2026_*.html
+
