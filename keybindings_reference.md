@@ -1,6 +1,6 @@
 # Pop!_OS Custom Keybindings Reference
 
-Last synced: `2026-10-26 14:44`
+Last synced: `2026-11-02 09:53`
 Live COSMIC Path: `~/.config/cosmic/com.system76.CosmicSettings.Shortcuts/v1/custom`  
 Repository Copy: [`cosmic-custom-keybindings.ron`](cosmic-custom-keybindings.ron)  
 System Actions Copy: [`cosmic-system-actions.ron`](cosmic-system-actions.ron)  
@@ -10,7 +10,7 @@ Symlink: [`keybindings.ron`](keybindings.ron)
 
 ## Overview
 
-- **Active in Pop!_OS COSMIC**: 43
+- **Active in Pop!_OS COSMIC**: 42
 - **Global Wayland Input Daemons (`evdev`)**: 2 (`discord-ptt` Push-to-Talk & Mode Toggle)
 - **Removed - app not installed**: 6
 - **Removed - explicitly requested**: 2 (Guake, Digikam)
@@ -65,7 +65,6 @@ Guake has been fully uninstalled and replaced by TildaZ as the drop-down termina
 | `Super + Alt + w` | Warp Terminal | `warp-terminal` |  |
 | `Super + Alt + x` | X.com | `xdg-open https://x.com/home` |  |
 | `Super + Shift + m` | Monitor Off | `/home/sticks/bin/monitor-off` | Turn off monitor power (DPMS sleep) via wlopm |
-| `Super + Shift + o` | ChatGpt | `xdg-open https://chatgpt.com/` |  |
 | `Super + Shift + s` | Shotcut | `flatpak run org.shotcut.Shotcut` |  |
 | `Super + Shift + t` | Twitch | `xdg-open https://www.twitch.tv` |  |
 | `Ctrl + Alt + BackSpace` | Restart X | `/home/sticks/bin/restartx` |  |
