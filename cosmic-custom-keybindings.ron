@@ -12,6 +12,14 @@
             Super,
             Ctrl,
         ],
+        key: "m",
+        description: Some("Meta AI"),
+    ): Spawn("xdg-open https://www.meta.ai"),
+    (
+        modifiers: [
+            Super,
+            Ctrl,
+        ],
         key: "g",
         description: Some("agy"),
     ): Spawn("cosmic-term -e agy"),
@@ -143,11 +151,6 @@
         key: "Escape",
         description: Some("Lock Screen"),
     ): Spawn("loginctl lock-session"),
-    (
-        modifiers: [],
-        key: "F12",
-        description: Some("TildaZ_0"),
-    ): Spawn("/home/sticks/.local/opt/tildaz/tildaz --toggle 0"),
     (
         modifiers: [
             Super,
@@ -322,4 +325,5 @@
         key: "w",
         description: Some("Warp Terminal"),
     ): Spawn("warp-terminal"),
+    (modifiers: [], key: "F12", description: Some("TildaZ_0")): Spawn("/home/sticks/.local/opt/tildaz/tildaz --toggle 0"),
 }

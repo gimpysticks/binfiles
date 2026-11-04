@@ -1,6 +1,6 @@
 # Pop!_OS Custom Keybindings Reference
 
-Last synced: `2026-11-02 09:53`
+Last synced: `2026-11-03 15:23`
 Live COSMIC Path: `~/.config/cosmic/com.system76.CosmicSettings.Shortcuts/v1/custom`  
 Repository Copy: [`cosmic-custom-keybindings.ron`](cosmic-custom-keybindings.ron)  
 System Actions Copy: [`cosmic-system-actions.ron`](cosmic-system-actions.ron)  
@@ -10,7 +10,7 @@ Symlink: [`keybindings.ron`](keybindings.ron)
 
 ## Overview
 
-- **Active in Pop!_OS COSMIC**: 42
+- **Active in Pop!_OS COSMIC**: 43
 - **Global Wayland Input Daemons (`evdev`)**: 2 (`discord-ptt` Push-to-Talk & Mode Toggle)
 - **Removed - app not installed**: 6
 - **Removed - explicitly requested**: 2 (Guake, Digikam)
@@ -46,6 +46,7 @@ Guake has been fully uninstalled and replaced by TildaZ as the drop-down termina
 | `Super + Ctrl + c` | Connections | `flatpak run org.gnome.Connections` |  |
 | `Super + Ctrl + d` | Discord | `/home/sticks/.local/bin/discord` |  |
 | `Super + Ctrl + g` | agy | `cosmic-term -e agy` | Launch Antigravity CLI in cosmic-term |
+| `Super + Ctrl + m` | Meta AI | `xdg-open https://www.meta.ai` |  |
 | `Super + Ctrl + o` | ChatGPT | `xdg-open https://www.chatgpt.com` |  |
 | `Super + Ctrl + r` | Read Human | `/home/sticks/bin/readgTTS` |  |
 | `Super + Ctrl + s` | Steam | `steam` | updated from flatpak to native `steam` install |

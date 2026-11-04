@@ -16,6 +16,42 @@ controls{
       keyboardKey:i=57
     }
 
+    ID_LOCK_TARGET{
+      mouseButton:i=1
+    }
+
+    ID_LOCK_TARGET{
+      mouseButton:i=2
+    }
+
+    ID_LOCK_TARGET{
+      keyboardKey:i=45
+    }
+
+    ID_AIR_BRAKE{
+      keyboardKey:i=48
+    }
+
+    ID_TARGET_CAMERA{
+      keyboardKey:i=42
+    }
+
+    brake_left_rangeMax{
+      keyboardKey:i=48
+    }
+
+    brake_right_rangeMax{
+      keyboardKey:i=48
+    }
+
+    ID_ZOOM_TOGGLE{
+      mouseButton:i=1
+    }
+
+    ID_ZOOM_TOGGLE{
+      keyboardKey:i=44
+    }
+
     ID_CONTROL_MODE_HUMAN_UAV{
       keyboardKey:i=35
     }
