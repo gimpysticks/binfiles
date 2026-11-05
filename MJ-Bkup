@@ -54,6 +54,12 @@ fi
 # Ensure Variety is relaunched even if the backup exits early or fails
 trap restart_variety EXIT INT TERM
 
+# Sync Midjourney images to Google Photos before archiving files older than 5 days
+if [ -x "/home/sticks/bin/midjourney-photos-sync" ]; then
+  echo ">>> Syncing Midjourney images to Google Photos..."
+  /home/sticks/bin/midjourney-photos-sync --source-dir "$MJ_SRC" || echo "Notice: Google Photos sync encountered an issue, proceeding with local backup."
+fi
+
 # PNGs from Midjourney (>5 days old), preserving subfolder structure
 find "$MJ_SRC" -type f -name "*.png" -mtime +5 |
   sed "s|^$MJ_SRC/||" |
