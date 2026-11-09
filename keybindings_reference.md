@@ -1,6 +1,6 @@
 # Pop!_OS Custom Keybindings Reference
 
-Last synced: `2026-11-03 15:23`
+Last synced: `2026-11-09 12:49`
 Live COSMIC Path: `~/.config/cosmic/com.system76.CosmicSettings.Shortcuts/v1/custom`  
 Repository Copy: [`cosmic-custom-keybindings.ron`](cosmic-custom-keybindings.ron)  
 System Actions Copy: [`cosmic-system-actions.ron`](cosmic-system-actions.ron)  

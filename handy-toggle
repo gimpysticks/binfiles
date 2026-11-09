@@ -4,7 +4,13 @@
 APPIMAGE="/home/sticks/Applications/Handy.AppImage"
 
 if [[ "$1" == "--toggle-transcription" ]]; then
-    PID=$(pidof -s handy 2>/dev/null)
+    # Select the main handy process, excluding any child worker processes
+    PID=$(pgrep -x handy | while read -r p; do
+        if ! grep -q -- "--transcribe-worker" "/proc/$p/cmdline" 2>/dev/null; then
+            echo "$p"
+            break
+        fi
+    done)
     if [[ -n "$PID" ]]; then
         # Debounce to prevent duplicate triggers within 250ms (key repeat / rapid double presses)
         LOCK_FILE="/dev/shm/handy_toggle_${UID}"
