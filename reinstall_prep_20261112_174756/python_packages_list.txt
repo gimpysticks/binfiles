@@ -1,0 +1,6 @@
+certifi==2026.10.23 (pip --user)
+cffi==2.1.1 (pip --user)
+curl_cffi==0.17.0 (pip --user)
+gTTS==2.5.4 (pip --user)
+pycparser==3.12 (pip --user)
+websockets==17.4 (pip --user)

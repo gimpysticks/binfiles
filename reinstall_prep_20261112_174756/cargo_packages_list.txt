@@ -1,0 +1,2 @@
+fd-find v10.5.0:
+qrscan v0.1.6:

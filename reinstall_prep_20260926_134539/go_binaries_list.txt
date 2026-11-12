@@ -1,1 +1,0 @@
-authy-export	/home/sticks/go/bin/authy-export

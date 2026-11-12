@@ -1,5 +1,5 @@
 #!/bin/bash
-# Multi-source reinstall script generated on 2026-09-26 12:59:26
+# Multi-source reinstall script generated on 2026-11-12 17:47:56
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
@@ -69,6 +69,7 @@ if [ -f "$SCRIPT_DIR/snap_apps_list.txt" ] && command -v snap >/dev/null 2>&1; t
                 continue
                 ;;
         esac
+
         if snap list 2>/dev/null | grep -q "^$snap "; then
             log "SKIP: $snap (already installed)"
         else
@@ -111,6 +112,17 @@ if [ -f "$SCRIPT_DIR/python_packages_list.txt" ] && command -v pip >/dev/null 2>
         log "INSTALL: pip install --user $pkg"
         pip install --user "$pkg" >> "$LOG_FILE" 2>&1 || log "FAILED: pip $pkg"
     done < "$SCRIPT_DIR/python_packages_list.txt"
+fi
+
+# 7. uv Tools
+if [ -f "$SCRIPT_DIR/uv_tools_list.txt" ] && command -v uv >/dev/null 2>&1; then
+    log "\n=== Installing uv Tools ==="
+    while IFS= read -r line || [ -n "$line" ]; do
+        [ -z "$line" ] && continue
+        tool=$(echo "$line" | awk '{print $1}')
+        log "INSTALL: uv tool install $tool"
+        uv tool install "$tool" >> "$LOG_FILE" 2>&1 || log "FAILED: uv tool install $tool"
+    done < "$SCRIPT_DIR/uv_tools_list.txt"
 fi
 
 log "\n=== AppImage Reminders ==="

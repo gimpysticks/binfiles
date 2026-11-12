@@ -18,6 +18,16 @@ else
     python3 "$SCRIPT_DIR/all-installed" --export "$OUTPUT_DIR"
 fi
 
+# Update symlinks in ~/bin to point to the latest reinstall scripts
+if [ -f "$OUTPUT_DIR/reinstall_apps" ]; then
+    ln -sf "$OUTPUT_DIR/reinstall_apps" "$SCRIPT_DIR/reinstall_apps"
+fi
+if [ -f "$OUTPUT_DIR/reinstall_apps.sh" ]; then
+    ln -sf "$OUTPUT_DIR/reinstall_apps.sh" "$SCRIPT_DIR/reinstall_apps.sh"
+elif [ -f "$OUTPUT_DIR/reinstall_apps" ]; then
+    ln -sf "$OUTPUT_DIR/reinstall_apps" "$SCRIPT_DIR/reinstall_apps.sh"
+fi
+
 echo -e "\n--- Script Finished ---"
 echo "All lists, manifest, and restore scripts are prepared in: $OUTPUT_DIR"
 echo "Copy this directory to external storage before reinstalling your OS!"

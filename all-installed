@@ -11,6 +11,7 @@ Detects:
   - Cargo Packages (Rust crates & binaries)
   - NPM Global Packages (Node.js global tools)
   - Python / Pip User Packages & CLI tools (pip --user, pipx)
+  - uv Tools (Python CLI tools installed via uv)
   - Go Binaries (~/go/bin)
   - Local User Scripts (~/bin, ~/.local/bin)
 """
@@ -293,6 +294,24 @@ def collect_python_user():
                 pass
     return sorted(items, key=lambda x: x["name"].lower())
 
+def collect_uv_tools():
+    if not command_exists("uv"):
+        return []
+    out = run_cmd("uv tool list")
+    tools = []
+    current_tool = None
+    for line in out.splitlines():
+        line_str = line.strip()
+        if not line_str:
+            continue
+        if not line.startswith(" ") and not line.startswith("-") and not line_str.startswith("-"):
+            parts = line_str.split()
+            current_tool = {"name": parts[0], "version": parts[1] if len(parts) > 1 else "", "binaries": []}
+            tools.append(current_tool)
+        elif line_str.startswith("-") and current_tool:
+            current_tool["binaries"].append(line_str.lstrip("-").strip())
+    return sorted(tools, key=lambda x: x["name"].lower())
+
 def collect_go_binaries():
     home = os.path.expanduser("~")
     go_bin = os.path.join(home, "go", "bin")
@@ -330,6 +349,7 @@ def collect_all_data():
         "cargo": collect_cargo(),
         "npm_global": collect_npm_global(),
         "python_user": collect_python_user(),
+        "uv_tools": collect_uv_tools(),
         "go_binaries": collect_go_binaries(),
         "apt_manual": collect_apt_manual(),
         "apt_selections": collect_apt_selections(),
@@ -344,6 +364,7 @@ def print_summary_table(data):
     cargo_cnt = len(data["cargo"])
     npm_cnt = len(data["npm_global"])
     python_cnt = len(data["python_user"])
+    uv_tools_cnt = len(data.get("uv_tools", []))
     go_cnt = len(data["go_binaries"])
     apt_manual_cnt = len(data["apt_manual"])
     local_scripts_cnt = len(data["local_scripts"])
@@ -357,6 +378,7 @@ def print_summary_table(data):
         ("🦀 Cargo Binaries", cargo_cnt, "Rust installed packages & crates"),
         ("🌐 Global NPM Packages", npm_cnt, "Node.js global CLI tools"),
         ("🐍 Python User Packages", python_cnt, "pip --user / pipx CLI applications"),
+        ("⚡ uv Tools", uv_tools_cnt, "Python CLI tools installed via uv"),
         ("🐹 Go Binaries", go_cnt, "~/go/bin compiled tools"),
         ("📁 Local Custom Scripts", local_scripts_cnt, "~/bin custom executable commands"),
         ("🐧 APT Manually Installed", apt_manual_cnt, "Debian/Ubuntu explicitly requested packages"),
@@ -397,6 +419,10 @@ def search_all(data, query):
     for p in data["python_user"]:
         if q in p["name"].lower():
             matches.append(("Python", p["name"], f"Version: {p['version']} ({p['source']})"))
+
+    for u in data.get("uv_tools", []):
+        if q in u["name"].lower() or any(q in b.lower() for b in u["binaries"]):
+            matches.append(("uv Tool", u["name"], f"Version: {u['version']} | Binaries: {', '.join(u['binaries'])}"))
 
     for g in data["go_binaries"]:
         if q in g["name"].lower():
@@ -468,6 +494,11 @@ def export_all(data, output_dir):
             f.write(f"{p['name']}=={p['version']} ({p['source']})\n")
     print(f"  {green('✓')} Saved python_packages_list.txt ({len(data['python_user'])} packages)")
 
+    with open(os.path.join(output_dir, "uv_tools_list.txt"), "w") as f:
+        for u in data.get("uv_tools", []):
+            f.write(f"{u['name']} {u['version']}\n")
+    print(f"  {green('✓')} Saved uv_tools_list.txt ({len(data.get('uv_tools', []))} tools)")
+
     with open(os.path.join(output_dir, "go_binaries_list.txt"), "w") as f:
         for g in data["go_binaries"]:
             f.write(f"{g['name']}\t{g['path']}\n")
@@ -498,6 +529,7 @@ def export_all(data, output_dir):
         f.write(f"| Cargo (Rust) | {len(data['cargo'])} | Cargo installed crates |\n")
         f.write(f"| NPM Global (Node) | {len(data['npm_global'])} | Global npm CLI tools |\n")
         f.write(f"| Python User Tools | {len(data['python_user'])} | pip user / pipx packages |\n")
+        f.write(f"| uv Tools | {len(data.get('uv_tools', []))} | Python tools installed via uv |\n")
         f.write(f"| Go Binaries | {len(data['go_binaries'])} | ~/go/bin tools |\n")
         f.write(f"| APT (Manual) | {len(data['apt_manual'])} | User-specified deb packages |\n")
         f.write(f"| APT (All DPKG) | {len(data['apt_selections'])} | All packages including dependencies |\n")
@@ -534,6 +566,10 @@ def export_all(data, output_dir):
         f.write("\n## Python User Packages\n\n")
         for py in data["python_user"]:
             f.write(f"- `{py['name']}=={py['version']}` ({py['source']})\n")
+
+        f.write("\n## uv Tools\n\n")
+        for u in data.get("uv_tools", []):
+            f.write(f"- **{u['name']}** ({u['version']}) -> Binaries: `{', '.join(u['binaries'])}`\n")
 
     print(f"  {green('✓')} Saved summary_all_programs.md")
 
@@ -654,6 +690,17 @@ if [ -f "$SCRIPT_DIR/python_packages_list.txt" ] && command -v pip >/dev/null 2>
     done < "$SCRIPT_DIR/python_packages_list.txt"
 fi
 
+# 7. uv Tools
+if [ -f "$SCRIPT_DIR/uv_tools_list.txt" ] && command -v uv >/dev/null 2>&1; then
+    log "\\n=== Installing uv Tools ==="
+    while IFS= read -r line || [ -n "$line" ]; do
+        [ -z "$line" ] && continue
+        tool=$(echo "$line" | awk '{{print $1}}')
+        log "INSTALL: uv tool install $tool"
+        uv tool install "$tool" >> "$LOG_FILE" 2>&1 || log "FAILED: uv tool install $tool"
+    done < "$SCRIPT_DIR/uv_tools_list.txt"
+fi
+
 log "\\n=== AppImage Reminders ==="
 if [ -f "$SCRIPT_DIR/appimage_files_list.txt" ]; then
     log "AppImages to manually restore:"
@@ -662,11 +709,24 @@ fi
 
 log "\\n=== Reinstallation finished at $(date) ==="
 """
-    reinstall_path = os.path.join(output_dir, "reinstall_apps.sh")
+    reinstall_path = os.path.join(output_dir, "reinstall_apps")
     with open(reinstall_path, "w") as f:
         f.write(reinstall_script)
     os.chmod(reinstall_path, 0o775)
-    print(f"  {green('✓')} Saved executable reinstall_apps.sh")
+    print(f"  {green('✓')} Saved executable reinstall_apps")
+
+    reinstall_path_sh = os.path.join(output_dir, "reinstall_apps.sh")
+    if os.path.exists(reinstall_path_sh) or os.path.islink(reinstall_path_sh):
+        try:
+            os.remove(reinstall_path_sh)
+        except OSError:
+            pass
+    try:
+        os.symlink("reinstall_apps", reinstall_path_sh)
+    except OSError:
+        with open(reinstall_path_sh, "w") as f:
+            f.write(reinstall_script)
+        os.chmod(reinstall_path_sh, 0o775)
 
     print(bold(f"\n✨ Export complete! Backup located at: {output_dir}\n"))
 
@@ -678,7 +738,7 @@ def main():
     parser.add_argument("--export", "-e", nargs="?", const="DEFAULT", help="Export inventory files (optionally specify directory)")
     parser.add_argument("--json", action="store_true", help="Output all results as JSON")
     parser.add_argument("--markdown", action="store_true", help="Output overview in Markdown")
-    parser.add_argument("--category", "-c", choices=["desktop", "flatpak", "snap", "appimage", "cargo", "npm", "python", "go", "apt", "local", "all"], help="Filter by specific category")
+    parser.add_argument("--category", "-c", choices=["desktop", "flatpak", "snap", "appimage", "cargo", "npm", "python", "uv", "go", "apt", "local", "all"], help="Filter by specific category")
     parser.add_argument("--all", "-a", action="store_true", help="Print full lists of all categories")
 
     args = parser.parse_args()
@@ -751,6 +811,11 @@ def main():
             print(bold("\n🐍 Python User Packages:"))
             for p in data["python_user"]:
                 print(f"  • {bold(p['name'])} {dim(p['version'])} [{p['source']}]")
+
+        if cat in ["uv", "all"]:
+            print(bold("\n⚡ uv Tools:"))
+            for u in data.get("uv_tools", []):
+                print(f"  • {bold(u['name'])} {dim(u['version'])} (Binaries: {', '.join(u['binaries'])})")
 
         if cat in ["go", "all"]:
             print(bold("\n🐹 Go Binaries:"))
