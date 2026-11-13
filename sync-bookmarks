@@ -89,7 +89,7 @@ def get_running_browsers():
             res = subprocess.run(["pgrep", "-a", "-f", pat], capture_output=True, text=True, check=False)
             lines = [
                 l for l in res.stdout.strip().splitlines()
-                if l and not any(x in l for x in ("sync-bookmarks", "crashpad", "discord", "pgrep"))
+                if l and not any(x in l for x in ("sync-bookmarks", "crashpad", "discord", "pgrep", "steamwebhelper", "steam", ".steam"))
             ]
             if lines:
                 running.append(b_key)
@@ -297,14 +297,52 @@ def write_to_firefox(db_path, tree):
     if not os.path.exists(db_path):
         raise FileNotFoundError(f"Firefox database not found at: {db_path}")
 
+    profile_dir = os.path.dirname(db_path)
+
+    # 1. Prevent Firefox Sync from re-enabling bookmark cloud sync in this profile
+    user_js = os.path.join(profile_dir, "user.js")
+    try:
+        pref_line = 'user_pref("services.sync.engine.bookmarks", false);\n'
+        existing = ""
+        if os.path.exists(user_js):
+            with open(user_js, "r", encoding="utf-8") as f:
+                existing = f.read()
+        if pref_line not in existing:
+            with open(user_js, "a", encoding="utf-8") as f:
+                f.write(pref_line)
+    except Exception:
+        pass
+
+    # 2. Clear stale queued weave sync files if present
+    weave_dir = os.path.join(profile_dir, "weave")
+    for fname in ["toFetch/bookmarks.json", "failed/bookmarks.json"]:
+        fpath = os.path.join(weave_dir, fname)
+        if os.path.exists(fpath):
+            try:
+                os.remove(fpath)
+            except Exception:
+                pass
+
     conn = sqlite3.connect(db_path, timeout=10.0)
     cur = conn.cursor()
 
+    now_micro = int(time.time() * 1000000)
+
+    # 3. Tombstone recorder for Firefox Sync prevention
+    def record_deletion(guid):
+        if guid and len(guid) >= 12:
+            cur.execute("""
+                INSERT OR REPLACE INTO moz_bookmarks_deleted (guid, dateRemoved)
+                VALUES (?, ?)
+            """, (guid, now_micro))
+
     def clear_folder(fid):
-        cur.execute("SELECT id, type FROM moz_bookmarks WHERE parent = ?", (fid,))
-        for cid, ctype in cur.fetchall():
+        cur.execute("SELECT id, type, guid FROM moz_bookmarks WHERE parent = ?", (fid,))
+        rows = cur.fetchall()
+        for cid, ctype, cguid in rows:
             if ctype == 2:
                 clear_folder(cid)
+            record_deletion(cguid)
             cur.execute("DELETE FROM moz_bookmarks WHERE id = ?", (cid,))
 
     # Clean existing toolbar contents (parent = 3) and unfiled (parent = 5)
@@ -312,15 +350,27 @@ def write_to_firefox(db_path, tree):
     clear_folder(5)
 
     # Clean redundant imported 'Bookmarks bar' folders in Menu (parent = 2) if any exist
-    cur.execute("SELECT id FROM moz_bookmarks WHERE parent = 2 AND title = 'Bookmarks bar'")
-    for (bar_id,) in cur.fetchall():
+    cur.execute("SELECT id, guid FROM moz_bookmarks WHERE parent = 2 AND title = 'Bookmarks bar'")
+    for bar_id, bguid in cur.fetchall():
         clear_folder(bar_id)
+        record_deletion(bguid)
         cur.execute("DELETE FROM moz_bookmarks WHERE id = ?", (bar_id,))
+
+    # Clean duplicate links in Menu (parent = 2) if present
+    cur.execute("SELECT id, guid, title, fk FROM moz_bookmarks WHERE parent = 2")
+    menu_rows = cur.fetchall()
+    seen_menu = set()
+    for mid, mguid, mtitle, mfk in menu_rows:
+        key = (mtitle, mfk)
+        if key in seen_menu:
+            record_deletion(mguid)
+            cur.execute("DELETE FROM moz_bookmarks WHERE id = ?", (mid,))
+        else:
+            seen_menu.add(key)
 
     def insert_node(node, parent_id, pos):
         ntype = node.get("type")
         name = node.get("name", "")
-        now_micro = int(time.time() * 1000000)
         guid = node.get("guid", "").replace("-", "")[:12]
         if len(guid) < 12:
             guid = str(uuid.uuid4()).replace("-", "")[:12]
@@ -362,6 +412,12 @@ def write_to_firefox(db_path, tree):
 
     for pos, c in enumerate(tree.get("other", [])):
         insert_node(c, 5, pos)
+
+    # Recalculate foreign_count in moz_places to maintain database integrity
+    cur.execute("""
+        UPDATE moz_places
+        SET foreign_count = (SELECT count(*) FROM moz_bookmarks WHERE fk = moz_places.id)
+    """)
 
     conn.commit()
     conn.close()
@@ -409,6 +465,70 @@ def generate_html(tree):
 
     out.append("</DL><p>")
     return "\n".join(out)
+
+
+BROWSER_SHORTCUTS = {
+    "brave": {
+        "name": "Keyboard shortcuts - Brave Browser",
+        "url": "brave://settings/system/shortcuts",
+    },
+    "chrome": {
+        "name": "Keyboard shortcuts - Chrome Browser",
+        "url": "https://support.google.com/chrome/answer/157179?hl=en&co=GENIE.Platform%3DDesktop&ai1hc=1",
+    },
+    "firefox": {
+        "name": "Keyboard shortcuts - Firefox Browser",
+        "url": "https://support.mozilla.org/en-US/kb/keyboard-shortcuts-perform-firefox-tasks-quickly",
+    },
+}
+
+
+def is_shortcut_node(node):
+    if node.get("type") != "url":
+        return False
+    name = node.get("name", "").lower()
+    url = node.get("url", "").lower()
+    if "keyboard shortcuts" in name or "shortcuts -" in name:
+        return True
+    if url in ("brave://settings/system/shortcuts", "chrome://extensions/shortcuts"):
+        return True
+    if "support.mozilla.org" in url and "keyboard-shortcuts" in url:
+        return True
+    if "support.google.com" in url and "157179" in url:
+        return True
+    return False
+
+
+def adapt_tree_for_browser(tree, target_browser):
+    if target_browser not in BROWSER_SHORTCUTS:
+        return tree
+    import copy
+    adapted = copy.deepcopy(tree)
+    spec = BROWSER_SHORTCUTS[target_browser]
+
+    def walk_and_adapt(node_list):
+        for node in node_list:
+            if is_shortcut_node(node):
+                node["name"] = spec["name"]
+                node["url"] = spec["url"]
+            elif node.get("type") == "folder":
+                walk_and_adapt(node.get("children", []))
+
+    walk_and_adapt(adapted.get("bookmark_bar", []))
+    walk_and_adapt(adapted.get("other", []))
+    return adapted
+
+
+def check_tree_duplicates(tree):
+    seen = set()
+    dups = []
+    for c in tree.get("bookmark_bar", []):
+        key = (c.get("type"), c.get("name"), c.get("url", ""))
+        if key in seen:
+            dups.append(c.get("name") or c.get("url", "untitled"))
+        else:
+            seen.add(key)
+    return dups
 
 
 def count_tree_stats(tree):
@@ -535,8 +655,29 @@ Examples:
     else:
         raise ValueError(f"Unknown browser: {auth_browser}")
 
+    dups = check_tree_duplicates(tree)
+    if dups:
+        print(f"[!] WARNING: Authoritative source '{auth_browser.upper()}' toolbar contains duplicate entries:")
+        for d in dups[:5]:
+            print(f"    - {d}")
+        if len(dups) > 5:
+            print(f"    ... and {len(dups) - 5} more")
+        if not args.force:
+            print("[!] ABORTED to prevent corrupting other browsers with duplicated bookmarks.")
+            print("    Please specify a clean authoritative browser (e.g. 'sync-bookmarks brave') or use --force.")
+            sys.exit(1)
+
     url_count, folder_count = count_tree_stats(tree)
     print(f"[*] Extracted {url_count} URLs across {folder_count} folders from {auth_browser.upper()}.")
+
+    # Ensure authoritative browser also has its own correct shortcuts link if mis-matched
+    auth_tree = adapt_tree_for_browser(tree, auth_browser)
+    if auth_tree != tree:
+        if auth_browser in ("brave", "chrome"):
+            write_to_chromium(auth_path, auth_tree)
+        elif auth_browser == "firefox":
+            write_to_firefox(auth_path, auth_tree)
+        tree = auth_tree
 
     # 5. Mirror to secondary browsers
     for target in secondary_browsers:
@@ -546,10 +687,11 @@ Examples:
             continue
 
         print(f"[*] Mirroring to {target.upper()}...")
+        target_tree = adapt_tree_for_browser(tree, target)
         if target in ("brave", "chrome"):
-            write_to_chromium(target_path, tree)
+            write_to_chromium(target_path, target_tree)
         elif target == "firefox":
-            write_to_firefox(target_path, tree)
+            write_to_firefox(target_path, target_tree)
         print(f"    -> {target.upper()} successfully updated.")
 
     # 6. Generate Netscape HTML export

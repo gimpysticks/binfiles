@@ -6,7 +6,7 @@
 set -euo pipefail
 
 ZETSWIKI_DIR="$HOME/zets"
-HOME_MD="$ZETSWIKI_DIR/index.md"
+INDEX_MD="$ZETSWIKI_DIR/index.md"
 
 if [[ ! -d "$ZETSWIKI_DIR" ]]; then
     echo "Error: $ZETSWIKI_DIR directory does not exist" >&2
@@ -29,7 +29,7 @@ count=0
     done < <(find "$ZETSWIKI_DIR" -maxdepth 1 -name '*.md' -not -name 'index.md' -printf '%T@\t%f\n' | sort -rn)
 } > "$temp_file"
 
-if cp "$temp_file" "$HOME_MD"; then
+if cp "$temp_file" "$INDEX_MD"; then
     rm -f "$temp_file"
     echo "index.md updated successfully!"
     echo "Total files indexed: $count (sorted by modification time, newest first)"
