@@ -6,7 +6,7 @@
         ],
         key: "o",
         description: Some("ChatGPT"),
-    ): Spawn("xdg-open https://www.chatgpt.com"),
+    ): Spawn("chatgpt"),
     (
         modifiers: [
             Super,

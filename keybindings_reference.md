@@ -1,6 +1,6 @@
 # Pop!_OS Custom Keybindings Reference
 
-Last synced: `2026-11-09 12:49`
+Last synced: `2026-11-12 19:39`
 Live COSMIC Path: `~/.config/cosmic/com.system76.CosmicSettings.Shortcuts/v1/custom`  
 Repository Copy: [`cosmic-custom-keybindings.ron`](cosmic-custom-keybindings.ron)  
 System Actions Copy: [`cosmic-system-actions.ron`](cosmic-system-actions.ron)  
@@ -47,7 +47,7 @@ Guake has been fully uninstalled and replaced by TildaZ as the drop-down termina
 | `Super + Ctrl + d` | Discord | `/home/sticks/.local/bin/discord` |  |
 | `Super + Ctrl + g` | agy | `cosmic-term -e agy` | Launch Antigravity CLI in cosmic-term |
 | `Super + Ctrl + m` | Meta AI | `xdg-open https://www.meta.ai` |  |
-| `Super + Ctrl + o` | ChatGPT | `xdg-open https://www.chatgpt.com` |  |
+| `Super + Ctrl + o` | ChatGPT | `chatgpt` |  |
 | `Super + Ctrl + r` | Read Human | `/home/sticks/bin/readgTTS` |  |
 | `Super + Ctrl + s` | Steam | `steam` | updated from flatpak to native `steam` install |
 | `Super + Ctrl + w` | War Thunder | `steam steam://rungameid/236390` | updated from flatpak to native `steam` install |
